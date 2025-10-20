@@ -31,6 +31,7 @@ CPP_FILES=(
     "src/effects/TimeStretcher.cpp"
     "src/effects/VoiceFilter.cpp"
     "src/utils/WaveFile.cpp"
+    "src/visualization/CanvasRenderer.cpp"
 )
 
 # 컴파일

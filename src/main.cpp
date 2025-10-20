@@ -11,6 +11,7 @@
 #include "effects/TimeStretcher.h"
 #include "effects/VoiceFilter.h"
 #include "utils/WaveFile.h"
+#include "visualization/CanvasRenderer.h"
 
 using namespace emscripten;
 
@@ -168,6 +169,27 @@ val normalizeAudio(uintptr_t dataPtr, int length, int sampleRate) {
     return val(typed_memory_view(resultData.size(), resultData.data()));
 }
 
+// Duration + Pitch 통합 시각화
+void drawCombinedAnalysis(uintptr_t dataPtr, int length, int sampleRate, const std::string& canvasId) {
+    float* data = reinterpret_cast<float*>(dataPtr);
+    std::vector<float> samples(data, data + length);
+
+    AudioBuffer buffer(sampleRate, 1);
+    buffer.setData(samples);
+
+    // Duration 분석
+    DurationAnalyzer durationAnalyzer;
+    auto segments = durationAnalyzer.analyzeSegments(buffer);
+
+    // Pitch 분석
+    PitchAnalyzer pitchAnalyzer;
+    auto pitchPoints = pitchAnalyzer.analyze(buffer);
+
+    // Canvas에 그리기
+    CanvasRenderer renderer;
+    renderer.drawCombinedAnalysis(canvasId, segments, pitchPoints, sampleRate);
+}
+
 // Emscripten 바인딩
 EMSCRIPTEN_BINDINGS(audio_module) {
     // 기본 함수
@@ -186,6 +208,9 @@ EMSCRIPTEN_BINDINGS(audio_module) {
     function("applyTimeStretch", &applyTimeStretch);
     function("applyVoiceFilter", &applyVoiceFilter);
     function("normalizeAudio", &normalizeAudio);
+
+    // 시각화 함수
+    function("drawCombinedAnalysis", &drawCombinedAnalysis);
 
     // FilterType enum
     enum_<FilterType>("FilterType")

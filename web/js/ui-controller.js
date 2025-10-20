@@ -1,12 +1,10 @@
 import { AudioRecorder } from './audio-recorder.js';
 import { AudioPlayer } from './audio-player.js';
-import { GraphVisualizer } from './graph-visualizer.js';
 
 export class UIController {
     constructor() {
         this.recorder = null;
         this.player = new AudioPlayer();
-        this.visualizer = new GraphVisualizer();
         this.module = null;
         this.originalAudio = null;
         this.processedAudio = null;
@@ -35,8 +33,7 @@ export class UIController {
         document.getElementById('downloadOriginal').addEventListener('click', () => this.downloadOriginal());
 
         // 분석 버튼
-        document.getElementById('analyzePitch').addEventListener('click', () => this.analyzePitch());
-        document.getElementById('analyzeDuration').addEventListener('click', () => this.analyzeDuration());
+        document.getElementById('analyzeVoice').addEventListener('click', () => this.analyzeVoice());
 
         // 효과 버튼
         document.getElementById('applyPitchShift').addEventListener('click', () => this.applyPitchShift());
@@ -85,8 +82,7 @@ export class UIController {
         document.getElementById('stopRecord').disabled = true;
         document.getElementById('playOriginal').disabled = false;
         document.getElementById('downloadOriginal').disabled = false;
-        document.getElementById('analyzePitch').disabled = false;
-        document.getElementById('analyzeDuration').disabled = false;
+        document.getElementById('analyzeVoice').disabled = false;
         document.getElementById('applyPitchShift').disabled = false;
         document.getElementById('applyTimeStretch').disabled = false;
         document.getElementById('applyFilter').disabled = false;
@@ -96,16 +92,38 @@ export class UIController {
     }
 
     drawWaveform(wavData) {
-        // WAV 데이터를 Float32Array로 변환하여 그리기
+        // WAV 데이터를 Canvas에 간단히 그리기
+        const canvas = document.getElementById('waveformCanvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width = canvas.clientWidth;
+        const height = canvas.height = 100;
+
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, width, height);
+
         const dataView = new DataView(wavData.buffer);
         const samples = [];
-
         for (let i = 44; i < wavData.length; i += 2) {
             const sample = dataView.getInt16(i, true) / 32768.0;
             samples.push(sample);
         }
 
-        this.visualizer.drawWaveform('waveformCanvas', samples);
+        const step = Math.floor(samples.length / width);
+        ctx.strokeStyle = '#4CAF50';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+
+        for (let i = 0; i < width; i++) {
+            const sampleIndex = i * step;
+            const sample = samples[sampleIndex] || 0;
+            const y = (sample * 0.5 + 0.5) * height;
+            if (i === 0) {
+                ctx.moveTo(i, y);
+            } else {
+                ctx.lineTo(i, y);
+            }
+        }
+        ctx.stroke();
     }
 
     async playOriginal() {
@@ -121,7 +139,7 @@ export class UIController {
         this.player.downloadWav(this.originalAudio, 'original.wav');
     }
 
-    async analyzePitch() {
+    async analyzeVoice() {
         // WAV 데이터를 Float32Array로 변환
         const float32Data = this.wavToFloat32(this.currentAudioData);
 
@@ -129,24 +147,10 @@ export class UIController {
         const dataPtr = this.module._malloc(float32Data.length * 4);
         this.module.HEAPF32.set(float32Data, dataPtr / 4);
 
-        // Pitch 분석
-        const pitchPoints = this.module.analyzePitch(dataPtr, float32Data.length, this.sampleRate);
+        // C++에서 직접 Canvas에 그리기
+        this.module.drawCombinedAnalysis(dataPtr, float32Data.length, this.sampleRate, 'analysisCanvas');
+
         this.module._free(dataPtr);
-
-        // 그래프 그리기
-        this.visualizer.createPitchChart('pitchChart', pitchPoints);
-    }
-
-    async analyzeDuration() {
-        const float32Data = this.wavToFloat32(this.currentAudioData);
-
-        const dataPtr = this.module._malloc(float32Data.length * 4);
-        this.module.HEAPF32.set(float32Data, dataPtr / 4);
-
-        const segments = this.module.analyzeDuration(dataPtr, float32Data.length, this.sampleRate);
-        this.module._free(dataPtr);
-
-        this.visualizer.createDurationChart('durationChart', segments);
     }
 
     async applyPitchShift() {

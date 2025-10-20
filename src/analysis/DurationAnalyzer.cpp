@@ -14,55 +14,23 @@ std::vector<DurationSegment> DurationAnalyzer::analyzeSegments(const AudioBuffer
 
     const auto& data = buffer.getData();
     int sampleRate = buffer.getSampleRate();
-    int frameLength = static_cast<int>(0.02f * sampleRate); // 20ms frames
+    int frameLength = static_cast<int>(0.05f * sampleRate); // 50ms frames
 
-    bool inSegment = false;
-    size_t segmentStart = 0;
-
+    // 처음부터 끝까지 모든 프레임을 세그먼트로 만들기
     for (size_t i = 0; i < data.size(); i += frameLength) {
         size_t end = std::min(i + frameLength, data.size());
         float energy = calculateRMS(data, i, end - i);
 
-        if (energy > threshold) {
-            if (!inSegment) {
-                // 새 세그먼트 시작
-                segmentStart = i;
-                inSegment = true;
-            }
-        } else {
-            if (inSegment) {
-                // 세그먼트 종료
-                float startTime = static_cast<float>(segmentStart) / sampleRate;
-                float endTime = static_cast<float>(i) / sampleRate;
-                float duration = endTime - startTime;
-
-                if (duration >= minSegmentDuration_) {
-                    DurationSegment segment;
-                    segment.startTime = startTime;
-                    segment.endTime = endTime;
-                    segment.duration = duration;
-                    segment.energy = energy;
-                    segments.push_back(segment);
-                }
-                inSegment = false;
-            }
-        }
-    }
-
-    // 마지막 세그먼트 처리
-    if (inSegment) {
-        float startTime = static_cast<float>(segmentStart) / sampleRate;
-        float endTime = static_cast<float>(data.size()) / sampleRate;
+        float startTime = static_cast<float>(i) / sampleRate;
+        float endTime = static_cast<float>(end) / sampleRate;
         float duration = endTime - startTime;
 
-        if (duration >= minSegmentDuration_) {
-            DurationSegment segment;
-            segment.startTime = startTime;
-            segment.endTime = endTime;
-            segment.duration = duration;
-            segment.energy = calculateRMS(data, segmentStart, data.size() - segmentStart);
-            segments.push_back(segment);
-        }
+        DurationSegment segment;
+        segment.startTime = startTime;
+        segment.endTime = endTime;
+        segment.duration = duration;
+        segment.energy = energy;
+        segments.push_back(segment);
     }
 
     return segments;
