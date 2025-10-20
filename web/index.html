@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>음성 변조 앱</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ 음성 변조 앱</h1>
+
+        <!-- 녹음 섹션 -->
+        <section class="card">
+            <h2>1. 음성 녹음</h2>
+            <div class="controls">
+                <button id="startRecord" class="btn btn-primary">🔴 녹음 시작</button>
+                <button id="stopRecord" class="btn btn-danger" disabled>⏹️ 녹음 중지</button>
+                <button id="playOriginal" class="btn btn-secondary" disabled>▶️ 원본 재생</button>
+                <button id="downloadOriginal" class="btn btn-secondary" disabled>💾 원본 다운로드</button>
+            </div>
+            <div class="status" id="recordStatus">준비 완료</div>
+            <canvas id="waveformCanvas"></canvas>
+        </section>
+
+        <!-- 분석 섹션 -->
+        <section class="card">
+            <h2>2. 음성 분석</h2>
+            <div class="controls">
+                <button id="analyzePitch" class="btn btn-primary" disabled>📊 Pitch 분석</button>
+                <button id="analyzeDuration" class="btn btn-primary" disabled>⏱️ Duration 분석</button>
+            </div>
+            <div class="chart-container">
+                <canvas id="pitchChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="durationChart"></canvas>
+            </div>
+        </section>
+
+        <!-- 음성 효과 섹션 -->
+        <section class="card">
+            <h2>3. 음성 효과</h2>
+
+            <div class="effect-group">
+                <h3>Pitch 조절</h3>
+                <label for="pitchShift">Pitch Shift (반음): <span id="pitchValue">0</span></label>
+                <input type="range" id="pitchShift" min="-12" max="12" value="0" step="0.5">
+                <button id="applyPitchShift" class="btn btn-primary" disabled>적용</button>
+            </div>
+
+            <div class="effect-group">
+                <h3>Time Stretch</h3>
+                <label for="timeStretch">Speed (배속): <span id="timeValue">1.0</span></label>
+                <input type="range" id="timeStretch" min="0.5" max="2.0" value="1.0" step="0.1">
+                <button id="applyTimeStretch" class="btn btn-primary" disabled>적용</button>
+            </div>
+
+            <div class="effect-group">
+                <h3>음성 필터</h3>
+                <select id="filterType">
+                    <option value="0">Low Pass</option>
+                    <option value="1">High Pass</option>
+                    <option value="2">Band Pass</option>
+                    <option value="3">Robot</option>
+                    <option value="4">Echo</option>
+                    <option value="5">Reverb</option>
+                </select>
+                <label for="filterParam1">Parameter 1: <span id="param1Value">0.5</span></label>
+                <input type="range" id="filterParam1" min="0" max="1" value="0.5" step="0.05">
+                <label for="filterParam2">Parameter 2: <span id="param2Value">0.5</span></label>
+                <input type="range" id="filterParam2" min="0" max="1" value="0.5" step="0.05">
+                <button id="applyFilter" class="btn btn-primary" disabled>필터 적용</button>
+            </div>
+        </section>
+
+        <!-- 재생 및 다운로드 섹션 -->
+        <section class="card">
+            <h2>4. 결과</h2>
+            <div class="controls">
+                <button id="playProcessed" class="btn btn-success" disabled>▶️ 변조된 음성 재생</button>
+                <button id="downloadProcessed" class="btn btn-success" disabled>💾 변조된 음성 다운로드</button>
+                <button id="reset" class="btn btn-warning">🔄 초기화</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="main.js"></script>
+    <script type="module">
+        console.log('Script started');
+
+        // Module 함수를 호출하여 WASM 인스턴스 생성
+        async function initializeWasm() {
+            console.log('Initializing WASM...');
+            console.log('Module type:', typeof Module);
+
+            // Module()을 호출하여 실제 모듈 인스턴스 생성
+            const moduleInstance = await Module({
+                onRuntimeInitialized() {
+                    console.log('WASM Runtime initialized!');
+                }
+            });
+
+            console.log('Module instance created:', moduleInstance);
+            window.Module = moduleInstance; // 전역으로 설정
+
+            return moduleInstance;
+        }
+
+        // WASM 초기화 후 UIController 로드
+        initializeWasm().then((moduleInstance) => {
+            console.log('Module ready, loading UI Controller...');
+
+            import('./js/ui-controller.js').then(controllerModule => {
+                console.log('UI Controller module loaded');
+                const app = new controllerModule.UIController();
+                console.log('UIController instance created');
+                app.init();
+            }).catch(err => {
+                console.error('UI Controller loading error:', err);
+            });
+        }).catch(err => {
+            console.error('WASM initialization error:', err);
+        });
+    </script>
+</body>
+</html>

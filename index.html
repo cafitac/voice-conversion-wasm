@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++ WebAssembly Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 4px;
+            min-height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1>C++ WebAssembly 데모</h1>
+
+    <div class="container">
+        <h2>인사하기</h2>
+        <input type="text" id="nameInput" placeholder="이름을 입력하세요">
+        <button onclick="sayHello()">인사하기</button>
+    </div>
+
+    <div class="container">
+        <h2>덧셈 계산</h2>
+        <input type="number" id="num1" placeholder="첫 번째 숫자">
+        <input type="number" id="num2" placeholder="두 번째 숫자">
+        <button onclick="calculate()">계산하기</button>
+    </div>
+
+    <div id="output"></div>
+
+    <script src="main.js"></script>
+    <script>
+        Module.onRuntimeInitialized = () => {
+            console.log('WebAssembly 모듈이 로드되었습니다!');
+        };
+
+        function sayHello() {
+            const name = document.getElementById('nameInput').value;
+            const result = Module.greet(name || "게스트");
+            document.getElementById('output').innerHTML = `<strong>결과:</strong> ${result}`;
+        }
+
+        function calculate() {
+            const num1 = parseInt(document.getElementById('num1').value) || 0;
+            const num2 = parseInt(document.getElementById('num2').value) || 0;
+            const result = Module.add(num1, num2);
+            document.getElementById('output').innerHTML = `<strong>결과:</strong> ${num1} + ${num2} = ${result}`;
+        }
+    </script>
+</body>
+</html>

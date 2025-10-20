@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "buildCommand": "./build.sh",
+  "outputDirectory": "web",
+  "installCommand": "./setup_emscripten.sh"
+}
