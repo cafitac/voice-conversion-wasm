@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "./build.sh",
+  "buildCommand": "echo 'Using pre-built WASM files'",
   "outputDirectory": "web",
-  "installCommand": "./setup_emscripten.sh"
+  "installCommand": "echo 'No install needed'"
 }

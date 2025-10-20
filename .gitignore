@@ -5,3 +5,4 @@ a.out.wasm
 emsdk/
 .vercel
 node_modules/
+# web/main.js와 web/main.wasm은 배포를 위해 커밋에 포함
