@@ -18,45 +18,44 @@ C++로 작성한 코드를 WebAssembly로 컴파일하여 웹 브라우저에서
    source ./emsdk_env.sh
    ```
 
-## 빌드 방법
+## 빌드 및 실행 방법
 
-1. 빌드 스크립트 실행 권한 부여:
+1. 스크립트 실행 권한 부여:
    ```bash
-   chmod +x build.sh
+   chmod +x runserver.sh
    ```
 
-2. 빌드 실행:
+2. 서버 실행 (자동으로 빌드 후 서버 시작):
    ```bash
-   ./build.sh
+   ./runserver.sh
    ```
 
-## 실행 방법
+3. 브라우저에서 접속:
+   ```
+   http://localhost:8088/web/
+   ```
 
-빌드 후 웹 서버를 실행해야 합니다 (CORS 정책 때문에 file:// 프로토콜로는 작동하지 않습니다).
+`runserver.sh` 스크립트는 자동으로 빌드를 실행한 후 웹 서버를 시작합니다.
 
-### 방법 1: Python 웹 서버
+### 빌드만 실행하기
+
+빌드만 따로 실행하려면:
 ```bash
-python3 -m http.server 8000
+./build.sh
 ```
-
-### 방법 2: Node.js serve
-```bash
-npx serve .
-```
-
-브라우저에서 `http://localhost:8000` 접속
 
 ## 파일 구조
 
 - `main.cpp` - C++ 소스 코드
-- `index.html` - 웹 페이지
+- `web/index.html` - 웹 페이지
 - `build.sh` - 빌드 스크립트
-- `main.js` - 생성된 JavaScript 글루 코드 (빌드 후)
-- `main.wasm` - 생성된 WebAssembly 바이너리 (빌드 후)
+- `runserver.sh` - 빌드 및 서버 실행 스크립트
+- `web/main.js` - 생성된 JavaScript 글루 코드 (빌드 후)
+- `web/main.wasm` - 생성된 WebAssembly 바이너리 (빌드 후)
 
 ## 코드 수정 후
 
-코드를 수정한 후에는 다시 빌드해야 합니다:
+코드를 수정한 후에는 서버를 재시작하세요 (Ctrl+C로 종료 후 다시 실행):
 ```bash
-./build.sh
+./runserver.sh
 ```
