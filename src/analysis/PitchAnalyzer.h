@@ -34,6 +34,9 @@ private:
 
     // Parabolic interpolation으로 정확한 피크 찾기
     float findPeakParabolic(const std::vector<float>& data, int index);
+
+    // Median filter 적용
+    std::vector<PitchPoint> applyMedianFilter(const std::vector<PitchPoint>& points, int windowSize = 5);
 };
 
 #endif // PITCHANALYZER_H

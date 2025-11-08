@@ -32,6 +32,7 @@ CPP_FILES=(
     "src/effects/VoiceFilter.cpp"
     "src/utils/WaveFile.cpp"
     "src/visualization/CanvasRenderer.cpp"
+    "src/visualization/TrimController.cpp"
 )
 
 # 컴파일

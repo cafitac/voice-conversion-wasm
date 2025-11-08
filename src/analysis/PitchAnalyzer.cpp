@@ -31,7 +31,8 @@ std::vector<PitchPoint> PitchAnalyzer::analyze(const AudioBuffer& buffer, float 
         }
     }
 
-    return pitchPoints;
+    // Median filter 적용하여 튀는 값 제거
+    return applyMedianFilter(pitchPoints, 5);
 }
 
 float PitchAnalyzer::extractPitch(const std::vector<float>& frame, int sampleRate, float minFreq, float maxFreq) {
@@ -114,4 +115,36 @@ float PitchAnalyzer::findPeakParabolic(const std::vector<float>& data, int index
     float offset = 0.5f * (alpha - gamma) / (alpha - 2.0f * beta + gamma);
 
     return static_cast<float>(index) + offset;
+}
+
+std::vector<PitchPoint> PitchAnalyzer::applyMedianFilter(const std::vector<PitchPoint>& points, int windowSize) {
+    if (points.size() < static_cast<size_t>(windowSize)) {
+        return points;
+    }
+
+    std::vector<PitchPoint> filtered;
+    int halfWindow = windowSize / 2;
+
+    for (size_t i = 0; i < points.size(); ++i) {
+        // 윈도우 범위 계산
+        int start = std::max(0, static_cast<int>(i) - halfWindow);
+        int end = std::min(static_cast<int>(points.size()) - 1, static_cast<int>(i) + halfWindow);
+
+        // 윈도우 내 frequency 값들 수집
+        std::vector<float> windowFreqs;
+        for (int j = start; j <= end; ++j) {
+            windowFreqs.push_back(points[j].frequency);
+        }
+
+        // Median 계산
+        std::sort(windowFreqs.begin(), windowFreqs.end());
+        float median = windowFreqs[windowFreqs.size() / 2];
+
+        // 필터링된 포인트 생성
+        PitchPoint filteredPoint = points[i];
+        filteredPoint.frequency = median;
+        filtered.push_back(filteredPoint);
+    }
+
+    return filtered;
 }

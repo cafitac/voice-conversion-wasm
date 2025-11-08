@@ -165,6 +165,10 @@ select {
     cursor: pointer;
 }
 
+input[type="file"] {
+    display: none;
+}
+
 .chart-container {
     margin: 20px 0;
     background: #f7fafc;

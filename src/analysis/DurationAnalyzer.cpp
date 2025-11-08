@@ -16,7 +16,7 @@ std::vector<DurationSegment> DurationAnalyzer::analyzeSegments(const AudioBuffer
     int sampleRate = buffer.getSampleRate();
     int frameLength = static_cast<int>(0.05f * sampleRate); // 50ms frames
 
-    // 처음부터 끝까지 모든 프레임을 세그먼트로 만들기
+    // 모든 프레임을 세그먼트로 만들기
     for (size_t i = 0; i < data.size(); i += frameLength) {
         size_t end = std::min(i + frameLength, data.size());
         float energy = calculateRMS(data, i, end - i);

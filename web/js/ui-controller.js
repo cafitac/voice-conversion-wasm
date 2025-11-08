@@ -1,15 +1,25 @@
 import { AudioRecorder } from './audio-recorder.js';
 import { AudioPlayer } from './audio-player.js';
+import { WhisperController } from './whisper-controller.js';
+import { TimelineRenderer } from './timeline-renderer.js';
+import { AudioTrimmer } from './audio-trimmer.js';
 
 export class UIController {
     constructor() {
         this.recorder = null;
         this.player = new AudioPlayer();
+        this.whisper = new WhisperController();
+        this.timeline = new TimelineRenderer('timelineCanvas');
+        this.trimmer = null; // Will be initialized after module loads
         this.module = null;
         this.originalAudio = null;
         this.processedAudio = null;
         this.currentAudioData = null;
         this.sampleRate = 48000; // 브라우저 기본값
+        this.transcriptionWords = [];
+        this.audioMaxTime = 0;
+        this.cachedAudioPtr = null;
+        this.cachedAudioLength = 0;
     }
 
     async init() {
@@ -21,6 +31,7 @@ export class UIController {
 
         this.module = Module;
         this.recorder = new AudioRecorder(this.module);
+        this.trimmer = new AudioTrimmer('analysisCanvas', this.module, this);
         this.module.init();
         this.setupEventListeners();
     }
@@ -29,11 +40,17 @@ export class UIController {
         // 녹음 버튼
         document.getElementById('startRecord').addEventListener('click', () => this.startRecording());
         document.getElementById('stopRecord').addEventListener('click', () => this.stopRecording());
+        document.getElementById('uploadFile').addEventListener('click', () => this.uploadFile());
+        document.getElementById('fileInput').addEventListener('change', (e) => this.handleFileUpload(e));
         document.getElementById('playOriginal').addEventListener('click', () => this.playOriginal());
         document.getElementById('downloadOriginal').addEventListener('click', () => this.downloadOriginal());
 
         // 분석 버튼
         document.getElementById('analyzeVoice').addEventListener('click', () => this.analyzeVoice());
+        document.getElementById('loadWhisperModel').addEventListener('click', () => this.loadWhisperModel());
+        document.getElementById('transcribeVoice').addEventListener('click', () => this.transcribeVoice());
+        document.getElementById('trimAudio').addEventListener('click', () => this.trimAudio());
+        document.getElementById('resetTrim').addEventListener('click', () => this.resetTrim());
 
         // 효과 버튼
         document.getElementById('applyPitchShift').addEventListener('click', () => this.applyPitchShift());
@@ -83,12 +100,59 @@ export class UIController {
         document.getElementById('playOriginal').disabled = false;
         document.getElementById('downloadOriginal').disabled = false;
         document.getElementById('analyzeVoice').disabled = false;
+        document.getElementById('loadWhisperModel').disabled = false;
         document.getElementById('applyPitchShift').disabled = false;
         document.getElementById('applyTimeStretch').disabled = false;
         document.getElementById('applyFilter').disabled = false;
 
         // 파형 그리기
         this.drawWaveform(this.originalAudio);
+    }
+
+    uploadFile() {
+        document.getElementById('fileInput').click();
+    }
+
+    async handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        document.getElementById('recordStatus').textContent = '파일 로딩 중...';
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const wavData = new Uint8Array(arrayBuffer);
+
+            // WAV 헤더 검증 (RIFF, WAVE)
+            const view = new DataView(wavData.buffer);
+            const riff = String.fromCharCode(...wavData.slice(0, 4));
+            const wave = String.fromCharCode(...wavData.slice(8, 12));
+
+            if (riff !== 'RIFF' || wave !== 'WAVE') {
+                throw new Error('유효한 WAV 파일이 아닙니다.');
+            }
+
+            // Sample Rate 추출 (offset 24, 4 bytes, little-endian)
+            this.sampleRate = view.getUint32(24, true);
+
+            this.originalAudio = wavData;
+            this.currentAudioData = wavData;
+
+            document.getElementById('recordStatus').textContent = `파일 업로드 완료! (${file.name}, ${this.sampleRate}Hz)`;
+            document.getElementById('playOriginal').disabled = false;
+            document.getElementById('downloadOriginal').disabled = false;
+            document.getElementById('analyzeVoice').disabled = false;
+            document.getElementById('loadWhisperModel').disabled = false;
+            document.getElementById('applyPitchShift').disabled = false;
+            document.getElementById('applyTimeStretch').disabled = false;
+            document.getElementById('applyFilter').disabled = false;
+
+            // 파형 그리기
+            this.drawWaveform(this.originalAudio);
+        } catch (error) {
+            console.error('파일 업로드 실패:', error);
+            document.getElementById('recordStatus').textContent = '파일 업로드 실패: ' + error.message;
+        }
     }
 
     drawWaveform(wavData) {
@@ -151,6 +215,110 @@ export class UIController {
         this.module.drawCombinedAnalysis(dataPtr, float32Data.length, this.sampleRate, 'analysisCanvas');
 
         this.module._free(dataPtr);
+
+        // Calculate max time and enable trimmer
+        this.audioMaxTime = float32Data.length / this.sampleRate;
+        this.trimmer.enable(this.audioMaxTime);
+        this.trimmer.updateStatus();
+        document.getElementById('trimAudio').disabled = false;
+        document.getElementById('resetTrim').disabled = false;
+
+        // If we have transcription data, update timeline
+        if (this.transcriptionWords.length > 0) {
+            this.timeline.setWords(this.transcriptionWords, this.audioMaxTime);
+            this.timeline.render();
+        }
+    }
+
+    async loadWhisperModel() {
+        const sttStatus = document.getElementById('sttStatus');
+        const progressContainer = document.getElementById('modelLoadProgress');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const loadButton = document.getElementById('loadWhisperModel');
+        const transcribeButton = document.getElementById('transcribeVoice');
+
+        try {
+            loadButton.disabled = true;
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            sttStatus.textContent = 'Whisper 모듈 초기화 중...';
+
+            // Initialize Whisper if not already done
+            if (!this.whisper.whisperModule) {
+                await this.whisper.init();
+            }
+
+            // Load model with progress
+            const modelUrl = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin';
+            sttStatus.textContent = '모델 다운로드 중...';
+
+            await this.whisper.loadModel(modelUrl, (progress) => {
+                progressBar.style.width = progress.percent.toFixed(1) + '%';
+                const loadedMB = (progress.loaded / 1024 / 1024).toFixed(1);
+                const totalMB = (progress.total / 1024 / 1024).toFixed(1);
+                progressText.textContent = `${loadedMB}MB / ${totalMB}MB (${progress.percent.toFixed(1)}%)`;
+
+                if (progress.status) {
+                    sttStatus.textContent = progress.status;
+                }
+            });
+
+            sttStatus.textContent = '모델 로드 완료!';
+            progressText.textContent = '모델이 준비되었습니다.';
+            transcribeButton.disabled = false;
+
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+            }, 2000);
+
+        } catch (error) {
+            console.error('모델 로드 실패:', error);
+            sttStatus.textContent = '모델 로드 실패: ' + error.message;
+            loadButton.disabled = false;
+            progressContainer.style.display = 'none';
+        }
+    }
+
+    async transcribeVoice() {
+        const sttStatus = document.getElementById('sttStatus');
+
+        if (!this.whisper.modelLoaded) {
+            sttStatus.textContent = '먼저 STT 모델을 로드해주세요.';
+            return;
+        }
+
+        try {
+            sttStatus.textContent = 'STT 변환 중...';
+            document.getElementById('transcribeVoice').disabled = true;
+
+            // Convert WAV to Float32
+            const float32Data = this.wavToFloat32(this.currentAudioData);
+
+            // Transcribe
+            const words = await this.whisper.transcribe(float32Data, this.sampleRate, 'ko');
+
+            // Calculate max time
+            const maxTime = float32Data.length / this.sampleRate;
+
+            this.transcriptionWords = words;
+
+            sttStatus.textContent = `STT 완료! (${words.length} 단어)`;
+            document.getElementById('transcribeVoice').disabled = false;
+
+            // Show timeline
+            document.getElementById('timelineContainer').style.display = 'block';
+
+            // Render timeline
+            this.timeline.setWords(words, maxTime);
+            this.timeline.render();
+
+            console.log('Transcription words:', words);
+        } catch (error) {
+            console.error('STT 변환 실패:', error);
+            sttStatus.textContent = 'STT 변환 실패: ' + error.message;
+            document.getElementById('transcribeVoice').disabled = false;
+        }
     }
 
     async applyPitchShift() {
@@ -218,6 +386,43 @@ export class UIController {
 
     downloadProcessed() {
         this.player.downloadWav(this.processedAudio, 'processed.wav');
+    }
+
+    trimAudio() {
+        const range = this.trimmer.getTrimRange();
+        const float32Data = this.wavToFloat32(this.currentAudioData);
+
+        // Calculate sample indices
+        const startSample = Math.floor(range.start * this.sampleRate);
+        const endSample = Math.floor(range.end * this.sampleRate);
+
+        // Extract the selected region
+        const trimmedData = float32Data.slice(startSample, endSample);
+
+        // Convert back to WAV
+        const trimmedWav = this.float32ToWav(trimmedData);
+
+        // Update current audio
+        this.currentAudioData = trimmedWav;
+        this.processedAudio = trimmedWav;
+
+        // Update UI
+        document.getElementById('playProcessed').disabled = false;
+        document.getElementById('downloadProcessed').disabled = false;
+        document.getElementById('trimStatus').textContent = `자르기 완료! 새 길이: ${(trimmedData.length / this.sampleRate).toFixed(2)}s`;
+
+        // Disable trimmer and re-analyze
+        this.trimmer.disable();
+        this.analyzeVoice();
+
+        // Redraw waveform
+        this.drawWaveform(this.currentAudioData);
+    }
+
+    resetTrim() {
+        this.trimmer.reset();
+        this.trimmer.updateStatus();
+        document.getElementById('trimStatus').textContent = '자르기 영역이 초기화되었습니다.';
     }
 
     reset() {

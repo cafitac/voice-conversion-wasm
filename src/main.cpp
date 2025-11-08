@@ -12,17 +12,24 @@
 #include "effects/VoiceFilter.h"
 #include "utils/WaveFile.h"
 #include "visualization/CanvasRenderer.h"
+#include "visualization/TrimController.h"
 
 using namespace emscripten;
 
 // 전역 레코더 인스턴스
 static AudioRecorder* g_recorder = nullptr;
 
+// 전역 Trim Controller
+static TrimController* g_trimController = nullptr;
+
 // 초기화
 void init() {
     if (!g_recorder) {
         // 48000Hz로 변경 (대부분의 브라우저 기본값)
         g_recorder = new AudioRecorder(48000, 1);
+    }
+    if (!g_trimController) {
+        g_trimController = new TrimController();
     }
 }
 
@@ -190,6 +197,62 @@ void drawCombinedAnalysis(uintptr_t dataPtr, int length, int sampleRate, const s
     renderer.drawCombinedAnalysis(canvasId, segments, pitchPoints, sampleRate);
 }
 
+// Trim handles 그리기
+void drawTrimHandles(const std::string& canvasId, float trimStart, float trimEnd, float maxTime) {
+    CanvasRenderer renderer;
+    renderer.drawTrimHandles(canvasId, trimStart, trimEnd, maxTime);
+}
+
+// Trim controller functions
+void enableTrimMode(const std::string& canvasId, float maxTime) {
+    if (g_trimController) {
+        g_trimController->enable(canvasId, maxTime);
+    }
+}
+
+void disableTrimMode() {
+    if (g_trimController) {
+        g_trimController->disable();
+    }
+}
+
+void trimMouseDown(float mouseX, float canvasWidth) {
+    if (g_trimController) {
+        g_trimController->startDrag(mouseX, canvasWidth);
+    }
+}
+
+void trimMouseMove(float mouseX, float canvasWidth) {
+    if (g_trimController) {
+        g_trimController->updateTrimPosition(mouseX, canvasWidth);
+        g_trimController->render();
+    }
+}
+
+void trimMouseUp() {
+    if (g_trimController) {
+        g_trimController->stopDrag();
+    }
+}
+
+float getTrimStart() {
+    return g_trimController ? g_trimController->getTrimStart() : 0.0f;
+}
+
+float getTrimEnd() {
+    return g_trimController ? g_trimController->getTrimEnd() : 0.0f;
+}
+
+bool isTrimDragging() {
+    return g_trimController ? g_trimController->isDragging() : false;
+}
+
+void resetTrimHandles() {
+    if (g_trimController) {
+        g_trimController->reset();
+    }
+}
+
 // Emscripten 바인딩
 EMSCRIPTEN_BINDINGS(audio_module) {
     // 기본 함수
@@ -211,6 +274,18 @@ EMSCRIPTEN_BINDINGS(audio_module) {
 
     // 시각화 함수
     function("drawCombinedAnalysis", &drawCombinedAnalysis);
+    function("drawTrimHandles", &drawTrimHandles);
+
+    // Trim controller 함수
+    function("enableTrimMode", &enableTrimMode);
+    function("disableTrimMode", &disableTrimMode);
+    function("trimMouseDown", &trimMouseDown);
+    function("trimMouseMove", &trimMouseMove);
+    function("trimMouseUp", &trimMouseUp);
+    function("getTrimStart", &getTrimStart);
+    function("getTrimEnd", &getTrimEnd);
+    function("isTrimDragging", &isTrimDragging);
+    function("resetTrimHandles", &resetTrimHandles);
 
     // FilterType enum
     enum_<FilterType>("FilterType")

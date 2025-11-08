@@ -20,6 +20,14 @@ public:
         int sampleRate
     );
 
+    // Trim handles 그리기
+    void drawTrimHandles(
+        const std::string& canvasId,
+        float trimStart,
+        float trimEnd,
+        float maxTime
+    );
+
 private:
     // Canvas 2D context 헬퍼 함수들
     void setFillStyle(emscripten::val ctx, const std::string& color);

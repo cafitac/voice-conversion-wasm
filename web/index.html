@@ -8,16 +8,18 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎙️ 음성 변조 앱</h1>
+        <h1>음성 변조 앱</h1>
 
         <!-- 녹음 섹션 -->
         <section class="card">
-            <h2>1. 음성 녹음</h2>
+            <h2>1. 음성 녹음 / 파일 업로드</h2>
             <div class="controls">
-                <button id="startRecord" class="btn btn-primary">🔴 녹음 시작</button>
-                <button id="stopRecord" class="btn btn-danger" disabled>⏹️ 녹음 중지</button>
-                <button id="playOriginal" class="btn btn-secondary" disabled>▶️ 원본 재생</button>
-                <button id="downloadOriginal" class="btn btn-secondary" disabled>💾 원본 다운로드</button>
+                <button id="startRecord" class="btn btn-primary">녹음 시작</button>
+                <button id="stopRecord" class="btn btn-danger" disabled>녹음 중지</button>
+                <button id="uploadFile" class="btn btn-primary">파일 업로드</button>
+                <input type="file" id="fileInput" accept=".wav" style="display: none;">
+                <button id="playOriginal" class="btn btn-secondary" disabled>원본 재생</button>
+                <button id="downloadOriginal" class="btn btn-secondary" disabled>원본 다운로드</button>
             </div>
             <div class="status" id="recordStatus">준비 완료</div>
             <canvas id="waveformCanvas"></canvas>
@@ -27,10 +29,28 @@
         <section class="card">
             <h2>2. 음성 분석</h2>
             <div class="controls">
-                <button id="analyzeVoice" class="btn btn-primary" disabled>📊 음성 분석</button>
+                <button id="analyzeVoice" class="btn btn-primary" disabled>음성 분석</button>
+                <button id="loadWhisperModel" class="btn btn-primary" disabled>STT 모델 로드</button>
+                <button id="transcribeVoice" class="btn btn-primary" disabled>STT 변환</button>
+                <button id="trimAudio" class="btn btn-warning" disabled style="margin-left: 20px;">선택 영역으로 자르기</button>
+                <button id="resetTrim" class="btn btn-secondary" disabled>자르기 초기화</button>
             </div>
-            <div class="chart-container">
-                <canvas id="analysisCanvas" width="1200" height="400"></canvas>
+            <div class="status" id="sttStatus"></div>
+            <div id="trimStatus" style="margin: 5px 0; font-size: 14px; color: #4CAF50;"></div>
+            <div id="modelLoadProgress" style="display: none; margin: 10px 0;">
+                <div style="background: #333; border-radius: 10px; overflow: hidden; height: 20px;">
+                    <div id="progressBar" style="background: #4CAF50; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                </div>
+                <div id="progressText" style="margin-top: 5px; font-size: 14px;"></div>
+            </div>
+            <div class="chart-container" style="position: relative;">
+                <canvas id="analysisCanvas" width="1200" height="600"></canvas>
+            </div>
+            <div style="margin-top: 10px;">
+                <canvas id="trimCanvas" width="1200" height="60" style="cursor: pointer; display: none;"></canvas>
+            </div>
+            <div id="timelineContainer" style="display: none;">
+                <canvas id="timelineCanvas" width="1200" height="100"></canvas>
             </div>
         </section>
 
@@ -74,9 +94,9 @@
         <section class="card">
             <h2>4. 결과</h2>
             <div class="controls">
-                <button id="playProcessed" class="btn btn-success" disabled>▶️ 변조된 음성 재생</button>
-                <button id="downloadProcessed" class="btn btn-success" disabled>💾 변조된 음성 다운로드</button>
-                <button id="reset" class="btn btn-warning">🔄 초기화</button>
+                <button id="playProcessed" class="btn btn-success" disabled>변조된 음성 재생</button>
+                <button id="downloadProcessed" class="btn btn-success" disabled>변조된 음성 다운로드</button>
+                <button id="reset" class="btn btn-warning">초기화</button>
             </div>
         </section>
     </div>

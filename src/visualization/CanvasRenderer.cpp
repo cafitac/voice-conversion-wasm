@@ -92,26 +92,90 @@ void CanvasRenderer::drawCombinedAnalysis(
 
     // Pitch 곡선 그리기
     if (!pitchPoints.empty()) {
-        // Pitch 범위 계산
-        float minPitch = 1000000.0f;
-        float maxPitch = 0.0f;
+        // Step 1: 음성 구간 판별을 위한 energy threshold 계산
+        std::vector<float> segmentEnergies;
+        for (const auto& seg : segments) {
+            segmentEnergies.push_back(seg.energy);
+        }
+
+        float voiceThreshold = 0.01f;
+        if (!segmentEnergies.empty()) {
+            std::sort(segmentEnergies.begin(), segmentEnergies.end());
+            float median = segmentEnergies[segmentEnergies.size() / 2];
+            voiceThreshold = std::max(0.01f, median * 0.2f);
+        }
+
+        // Step 2: 음성 구간의 유효한 pitch만 수집
+        std::vector<float> validFrequencies;
         for (const auto& point : pitchPoints) {
-            if (point.frequency > 0 && point.confidence > 0.5f) {
-                minPitch = std::min(minPitch, point.frequency);
-                maxPitch = std::max(maxPitch, point.frequency);
+            // Duration 세그먼트에서 해당 시간의 energy 확인
+            bool isVoice = false;
+            for (const auto& seg : segments) {
+                if (point.time >= seg.startTime && point.time <= seg.endTime) {
+                    if (seg.energy >= voiceThreshold) {
+                        isVoice = true;
+                    }
+                    break;
+                }
+            }
+
+            // 음성 구간의 유효한 주파수만 수집
+            if (isVoice && point.frequency > 80.0f && point.frequency < 1000.0f) {
+                validFrequencies.push_back(point.frequency);
             }
         }
 
-        // 유효한 pitch 범위 설정 (음성 주파수 범위: 80Hz ~ 500Hz)
-        if (minPitch > maxPitch) {
+        // Step 2: 중앙값 기반 이상치 제거
+        float minPitch = 1000000.0f;
+        float maxPitch = 0.0f;
+
+        if (!validFrequencies.empty()) {
+            // 중앙값 계산
+            std::sort(validFrequencies.begin(), validFrequencies.end());
+            float median = validFrequencies[validFrequencies.size() / 2];
+
+            // IQR (Interquartile Range) 계산
+            size_t q1Idx = validFrequencies.size() / 4;
+            size_t q3Idx = (validFrequencies.size() * 3) / 4;
+            float q1 = validFrequencies[q1Idx];
+            float q3 = validFrequencies[q3Idx];
+            float iqr = q3 - q1;
+
+            // 이상치 범위: Q1 - 1.5*IQR ~ Q3 + 1.5*IQR
+            float lowerBound = q1 - 1.5f * iqr;
+            float upperBound = q3 + 1.5f * iqr;
+
+            // 이상치를 제외한 범위 계산
+            for (float freq : validFrequencies) {
+                if (freq >= lowerBound && freq <= upperBound) {
+                    minPitch = std::min(minPitch, freq);
+                    maxPitch = std::max(maxPitch, freq);
+                }
+            }
+        }
+
+        // Step 3: 유효한 pitch 범위 동적 설정
+        if (minPitch > maxPitch || validFrequencies.empty()) {
+            // 데이터가 없으면 기본값
             minPitch = 80.0f;
             maxPitch = 500.0f;
         } else {
-            minPitch = std::max(50.0f, minPitch - 20.0f);
-            maxPitch = std::min(600.0f, maxPitch + 20.0f);
+            // 실제 데이터 범위에서 여유 공간 추가
+            float range = maxPitch - minPitch;
+            float padding = std::max(50.0f, range * 0.2f); // 20% 또는 최소 50Hz
+
+            minPitch = std::max(50.0f, minPitch - padding);
+            maxPitch = std::min(1000.0f, maxPitch + padding); // 최대 1000Hz로 제한
+
+            // 최소 범위 보장 (너무 좁은 범위 방지)
+            if (maxPitch - minPitch < 200.0f) {
+                float center = (minPitch + maxPitch) / 2.0f;
+                minPitch = center - 100.0f;
+                maxPitch = center + 100.0f;
+            }
         }
 
-        // Pitch 곡선 그리기
+        // Pitch 곡선 그리기 (모든 포인트, 음성 구간은 실제값, 비음성은 바닥)
         setStrokeStyle(ctx, "rgba(255,100,100,1.0)");
         setLineWidth(ctx, 3.0f);
 
@@ -119,24 +183,52 @@ void CanvasRenderer::drawCombinedAnalysis(
         bool firstPoint = true;
 
         for (const auto& point : pitchPoints) {
-            if (point.frequency > 0 && point.confidence > 0.5f) {
-                float x = marginLeft + (point.time / maxTime) * graphWidth;
-                float y = marginTop + (1.0f - (point.frequency - minPitch) / (maxPitch - minPitch)) * graphHeight;
-
-                if (firstPoint) {
-                    ctx.call<void>("moveTo", x, y);
-                    firstPoint = false;
-                } else {
-                    ctx.call<void>("lineTo", x, y);
+            // Duration 세그먼트에서 해당 시간의 energy 확인
+            bool isVoice = false;
+            for (const auto& seg : segments) {
+                if (point.time >= seg.startTime && point.time <= seg.endTime) {
+                    if (seg.energy >= voiceThreshold) {
+                        isVoice = true;
+                    }
+                    break;
                 }
+            }
+
+            float x = marginLeft + (point.time / maxTime) * graphWidth;
+            float y;
+
+            if (isVoice && point.frequency >= minPitch && point.frequency <= maxPitch) {
+                // 음성 구간: 실제 pitch 값 사용
+                y = marginTop + (1.0f - (point.frequency - minPitch) / (maxPitch - minPitch)) * graphHeight;
+            } else {
+                // 비음성 구간: 바닥(minPitch)으로 표시
+                y = marginTop + graphHeight;
+            }
+
+            if (firstPoint) {
+                ctx.call<void>("moveTo", x, y);
+                firstPoint = false;
+            } else {
+                ctx.call<void>("lineTo", x, y);
             }
         }
         ctx.call<void>("stroke");
 
-        // Pitch 포인트 표시
+        // Pitch 포인트 표시 (음성 구간만)
         setFillStyle(ctx, "rgba(255,100,100,0.8)");
         for (const auto& point : pitchPoints) {
-            if (point.frequency > 0 && point.confidence > 0.7f) {
+            // Duration 세그먼트에서 해당 시간의 energy 확인
+            bool isVoice = false;
+            for (const auto& seg : segments) {
+                if (point.time >= seg.startTime && point.time <= seg.endTime) {
+                    if (seg.energy >= voiceThreshold) {
+                        isVoice = true;
+                    }
+                    break;
+                }
+            }
+
+            if (isVoice && point.frequency >= minPitch && point.frequency <= maxPitch) {
                 float x = marginLeft + (point.time / maxTime) * graphWidth;
                 float y = marginTop + (1.0f - (point.frequency - minPitch) / (maxPitch - minPitch)) * graphHeight;
 
@@ -232,4 +324,47 @@ void CanvasRenderer::setFont(val ctx, const std::string& font) {
 
 float CanvasRenderer::mapValue(float value, float inMin, float inMax, float outMin, float outMax) {
     return outMin + (value - inMin) * (outMax - outMin) / (inMax - inMin);
+}
+
+void CanvasRenderer::drawTrimHandles(
+    const std::string& canvasId,
+    float trimStart,
+    float trimEnd,
+    float maxTime
+) {
+    // JavaScript에서 Canvas element와 context 가져오기
+    val document = val::global("document");
+    val canvas = document.call<val>("getElementById", canvasId);
+
+    if (canvas.isNull() || canvas.isUndefined()) {
+        return;
+    }
+
+    val ctx = canvas.call<val>("getContext", std::string("2d"));
+    int canvasWidth = canvas["width"].as<int>();
+    int canvasHeight = canvas["height"].as<int>();
+
+    // 그래프 영역 설정 (분석 그래프와 동일)
+    float marginLeft = 60.0f;
+    float marginRight = 20.0f;
+    float graphWidth = canvasWidth - marginLeft - marginRight;
+
+    // Trim 위치 계산
+    float startX = marginLeft + (trimStart / maxTime) * graphWidth;
+    float endX = marginLeft + (trimEnd / maxTime) * graphWidth;
+
+    // 반투명 오버레이 (trim 되는 영역)
+    setFillStyle(ctx, "rgba(0, 0, 0, 0.5)");
+    fillRect(ctx, marginLeft, 0, startX - marginLeft, canvasHeight);
+    fillRect(ctx, endX, 0, marginLeft + graphWidth - endX, canvasHeight);
+
+    // Trim handles (노란색 막대)
+    setFillStyle(ctx, "#FFD700");
+    fillRect(ctx, startX - 3, 0, 6, canvasHeight);
+    fillRect(ctx, endX - 3, 0, 6, canvasHeight);
+
+    // 선택 영역 테두리
+    setStrokeStyle(ctx, "#FFD700");
+    setLineWidth(ctx, 2.0f);
+    strokeRect(ctx, startX, 0, endX - startX, canvasHeight);
 }
