@@ -18,6 +18,10 @@
 #include "effects/FastPitchShiftStrategy.h"
 #include "effects/HighQualityPitchShiftStrategy.h"
 #include "effects/ExternalPitchShiftStrategy.h"
+#include "effects/ITimeStretchStrategy.h"
+#include "effects/FastTimeStretchStrategy.h"
+#include "effects/HighQualityTimeStretchStrategy.h"
+#include "effects/ExternalTimeStretchStrategy.h"
 #include "synthesis/FrameReconstructor.h"
 #include "utils/WaveFile.h"
 #include "visualization/CanvasRenderer.h"
@@ -31,9 +35,13 @@ static AudioRecorder *g_recorder = nullptr;
 // 전역 Trim Controller
 static TrimController *g_trimController = nullptr;
 
-// 전역 Pitch Shift Strategy (기본값: HighQuality)
+// 전역 Pitch Shift Strategy (기본값: External)
 static IPitchShiftStrategy *g_pitchShiftStrategy = nullptr;
 static bool g_strategyOwned = false;
+
+// 전역 Time Stretch Strategy (기본값: External)
+static ITimeStretchStrategy *g_timeStretchStrategy = nullptr;
+static bool g_timeStretchStrategyOwned = false;
 
 // 초기화
 void init() {
@@ -48,6 +56,11 @@ void init() {
     // 기본값: External (SoundTouch) 사용
     g_pitchShiftStrategy = new ExternalPitchShiftStrategy(true, false);
     g_strategyOwned = true;
+  }
+  if (!g_timeStretchStrategy) {
+    // 기본값: External (SoundTouch) 사용
+    g_timeStretchStrategy = new ExternalTimeStretchStrategy(true, false);
+    g_timeStretchStrategyOwned = true;
   }
 }
 
@@ -80,6 +93,37 @@ void setPitchShiftQuality(const std::string &quality) {
 std::string getPitchShiftQuality() {
   init();
   return g_pitchShiftStrategy ? g_pitchShiftStrategy->getName() : "None";
+}
+
+// Time Stretch Strategy 설정
+void setTimeStretchQuality(const std::string &quality) {
+  // 기존 strategy 정리
+  if (g_timeStretchStrategyOwned && g_timeStretchStrategy) {
+    delete g_timeStretchStrategy;
+  }
+
+  // 새 strategy 생성
+  if (quality == "fast") {
+    g_timeStretchStrategy = new FastTimeStretchStrategy();
+    g_timeStretchStrategyOwned = true;
+  } else if (quality == "high") {
+    g_timeStretchStrategy = new HighQualityTimeStretchStrategy(1024, 256);
+    g_timeStretchStrategyOwned = true;
+  } else if (quality == "external") {
+    g_timeStretchStrategy = new ExternalTimeStretchStrategy(true, false);
+    // Anti-aliasing ON, QuickSeek OFF
+    g_timeStretchStrategyOwned = true;
+  } else {
+    // 기본값: External (SoundTouch)
+    g_timeStretchStrategy = new ExternalTimeStretchStrategy(true, false);
+    g_timeStretchStrategyOwned = true;
+  }
+}
+
+// 현재 사용 중인 time stretch strategy 이름 반환
+std::string getTimeStretchQuality() {
+  init();
+  return g_timeStretchStrategy ? g_timeStretchStrategy->getName() : "None";
 }
 
 // 녹음 시작
@@ -211,14 +255,16 @@ val applyTimeStretch(uintptr_t dataPtr,
                      int length,
                      int sampleRate,
                      float ratio) {
+  init();
+
   float *data = reinterpret_cast<float *>(dataPtr);
   std::vector<float> samples(data, data + length);
 
   AudioBuffer buffer(sampleRate, 1);
   buffer.setData(samples);
 
-  TimeStretcher stretcher;
-  AudioBuffer result = stretcher.stretch(buffer, ratio);
+  // Strategy 패턴: UI에서 선택한 알고리즘 사용
+  AudioBuffer result = g_timeStretchStrategy->stretch(buffer, ratio);
 
   const auto &resultData = result.getData();
   return val(typed_memory_view(resultData.size(), resultData.data()));
@@ -359,6 +405,10 @@ EMSCRIPTEN_BINDINGS (audio_module) {
   // Pitch Shift Quality 설정
   function("setPitchShiftQuality", &setPitchShiftQuality);
   function("getPitchShiftQuality", &getPitchShiftQuality);
+
+  // Time Stretch Quality 설정
+  function("setTimeStretchQuality", &setTimeStretchQuality);
+  function("getTimeStretchQuality", &getTimeStretchQuality);
 
   // 분석 함수
   function("analyzePitch", &analyzePitch);

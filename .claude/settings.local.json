@@ -26,7 +26,13 @@
       "Bash(./tests/test_reconstruction)",
       "Bash(./build_benchmark.sh:*)",
       "Bash(./benchmark_pitchshift:*)",
-      "Read(//Users/reddit/CLionProjects/**)"
+      "Read(//Users/reddit/CLionProjects/**)",
+      "Bash(./build_benchmark_timestretch.sh:*)",
+      "Bash(./benchmark_timestretch:*)",
+      "Bash(tests/build_benchmark_combined.sh)",
+      "Bash(./build_benchmark_combined.sh:*)",
+      "Bash(./benchmark_combined:*)",
+      "WebFetch(domain:www.mureka.ai)"
     ],
     "deny": [],
     "ask": []
