@@ -2,6 +2,8 @@
 #include <cmath>
 #include <algorithm>
 
+using namespace std;
+
 DurationAnalyzer::DurationAnalyzer()
     : threshold_(0.02f), minSegmentDuration_(0.1f) {
 }
@@ -9,8 +11,8 @@ DurationAnalyzer::DurationAnalyzer()
 DurationAnalyzer::~DurationAnalyzer() {
 }
 
-std::vector<DurationSegment> DurationAnalyzer::analyzeSegments(const AudioBuffer& buffer, float threshold) {
-    std::vector<DurationSegment> segments;
+vector<DurationSegment> DurationAnalyzer::analyzeSegments(const AudioBuffer& buffer, float threshold) {
+    vector<DurationSegment> segments;
 
     const auto& data = buffer.getData();
     int sampleRate = buffer.getSampleRate();
@@ -19,24 +21,48 @@ std::vector<DurationSegment> DurationAnalyzer::analyzeSegments(const AudioBuffer
     // 모든 프레임을 세그먼트로 만들기
     for (size_t i = 0; i < data.size(); i += frameLength) {
         size_t end = std::min(i + frameLength, data.size());
-        float energy = calculateRMS(data, i, end - i);
+        float rms = calculateRMS(data, i, end - i);
 
-        float startTime = static_cast<float>(i) / sampleRate;
-        float endTime = static_cast<float>(end) / sampleRate;
-        float duration = endTime - startTime;
+        // threshold 이상인 세그먼트만 포함
+        if (rms >= threshold) {
+            float startTime = static_cast<float>(i) / sampleRate;
+            float endTime = static_cast<float>(end) / sampleRate;
+            float duration = endTime - startTime;
+
+            DurationSegment segment;
+            segment.startTime = startTime;
+            segment.endTime = endTime;
+            segment.duration = duration;
+            segment.energy = rms;  // RMS 값을 energy로 사용
+            segments.push_back(segment);
+        }
+    }
+
+    return segments;
+}
+
+vector<DurationSegment> DurationAnalyzer::analyzeFrames(const vector<FrameData>& frames) {
+    vector<DurationSegment> segments;
+
+    for (const auto& frame : frames) {
+        // VAD 체크: 음성 구간만 포함
+        if (!frame.isVoice) {
+            continue;
+        }
 
         DurationSegment segment;
-        segment.startTime = startTime;
-        segment.endTime = endTime;
-        segment.duration = duration;
-        segment.energy = energy;
+        segment.startTime = frame.time;
+        segment.endTime = frame.time + (static_cast<float>(frame.samples.size()) / 48000.0f);  // 임시로 48kHz 가정
+        segment.duration = segment.endTime - segment.startTime;
+        segment.energy = frame.rms;  // 전처리된 RMS 사용
+
         segments.push_back(segment);
     }
 
     return segments;
 }
 
-std::vector<float> DurationAnalyzer::analyzeDurationCurve(const AudioBuffer& buffer, float frameSize) {
+vector<float> DurationAnalyzer::analyzeDurationCurve(const AudioBuffer& buffer, float frameSize) {
     std::vector<float> curve;
 
     const auto& data = buffer.getData();
@@ -58,14 +84,6 @@ void DurationAnalyzer::setThreshold(float threshold) {
 
 void DurationAnalyzer::setMinSegmentDuration(float duration) {
     minSegmentDuration_ = duration;
-}
-
-float DurationAnalyzer::calculateEnergy(const std::vector<float>& frame) {
-    float energy = 0.0f;
-    for (float sample : frame) {
-        energy += sample * sample;
-    }
-    return energy;
 }
 
 float DurationAnalyzer::calculateRMS(const std::vector<float>& data, size_t start, size_t length) {

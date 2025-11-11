@@ -15,18 +15,29 @@ export class AudioRecorder {
             return true;
         } catch (error) {
             console.error('마이크 접근 실패:', error);
+            // 실패 시 명시적으로 null로 설정
+            this.audioContext = null;
+            this.mediaStream = null;
             return false;
         }
     }
 
     async startRecording() {
-        if (!this.audioContext) {
-            await this.init();
+        if (!this.audioContext || !this.mediaStream) {
+            const success = await this.init();
+            if (!success) {
+                throw new Error('마이크 접근 권한이 필요합니다. 브라우저에서 마이크 권한을 허용해주세요.');
+            }
         }
 
         // AudioContext가 suspended 상태면 resume
         if (this.audioContext.state === 'suspended') {
             await this.audioContext.resume();
+        }
+
+        // MediaStream 유효성 재확인
+        if (!this.mediaStream) {
+            throw new Error('MediaStream이 초기화되지 않았습니다.');
         }
 
         this.isRecording = true;

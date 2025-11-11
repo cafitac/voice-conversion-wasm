@@ -1,6 +1,7 @@
 #include "PitchAnalyzer.h"
-#include <cmath>
 #include <algorithm>
+
+using namespace std;
 
 PitchAnalyzer::PitchAnalyzer()
     : minFreq_(80.0f), maxFreq_(400.0f) {
@@ -9,8 +10,8 @@ PitchAnalyzer::PitchAnalyzer()
 PitchAnalyzer::~PitchAnalyzer() {
 }
 
-std::vector<PitchPoint> PitchAnalyzer::analyze(const AudioBuffer& buffer, float frameSize) {
-    std::vector<PitchPoint> pitchPoints;
+vector<PitchPoint> PitchAnalyzer::analyze(const AudioBuffer& buffer, float frameSize) {
+    vector<PitchPoint> pitchPoints;
 
     const auto& data = buffer.getData();
     int sampleRate = buffer.getSampleRate();
@@ -18,15 +19,15 @@ std::vector<PitchPoint> PitchAnalyzer::analyze(const AudioBuffer& buffer, float 
     int hopSize = frameLength / 2; // 50% overlap
 
     for (size_t i = 0; i + frameLength < data.size(); i += hopSize) {
-        std::vector<float> frame(data.begin() + i, data.begin() + i + frameLength);
+        vector<float> frame(data.begin() + i, data.begin() + i + frameLength);
 
-        float pitch = extractPitch(frame, sampleRate, minFreq_, maxFreq_);
+        PitchResult result = extractPitch(frame, sampleRate, minFreq_, maxFreq_);
 
-        if (pitch > 0.0f) {
+        if (result.frequency > 0.0f) {
             PitchPoint point;
             point.time = static_cast<float>(i) / sampleRate;
-            point.frequency = pitch;
-            point.confidence = 0.8f; // 간단한 구현이므로 고정값
+            point.frequency = result.frequency;
+            point.confidence = result.confidence;  // 실제 계산된 신뢰도 사용
             pitchPoints.push_back(point);
         }
     }
@@ -35,8 +36,36 @@ std::vector<PitchPoint> PitchAnalyzer::analyze(const AudioBuffer& buffer, float 
     return applyMedianFilter(pitchPoints, 5);
 }
 
-float PitchAnalyzer::extractPitch(const std::vector<float>& frame, int sampleRate, float minFreq, float maxFreq) {
-    if (frame.empty()) return 0.0f;
+vector<PitchPoint> PitchAnalyzer::analyzeFrames(const vector<FrameData>& frames, int sampleRate) {
+    vector<PitchPoint> pitchPoints;
+
+    for (const auto& frame : frames) {
+        // VAD 체크: 음성 구간만 분석
+        if (!frame.isVoice) {
+            continue;
+        }
+
+        PitchResult result = extractPitch(frame.samples, sampleRate, minFreq_, maxFreq_);
+
+        if (result.frequency > 0.0f) {
+            PitchPoint point;
+            point.time = frame.time;
+            point.frequency = result.frequency;
+            point.confidence = result.confidence;
+            pitchPoints.push_back(point);
+        }
+    }
+
+    // Median filter 적용하여 튀는 값 제거
+    return applyMedianFilter(pitchPoints, 5);
+}
+
+PitchResult PitchAnalyzer::extractPitch(const vector<float>& frame, int sampleRate, float minFreq, float maxFreq) {
+    PitchResult result;
+    result.frequency = 0.0f;
+    result.confidence = 0.0f;
+
+    if (frame.empty()) return result;
 
     // Autocorrelation 계산
     auto autocorr = calculateAutocorrelation(frame);
@@ -60,15 +89,19 @@ float PitchAnalyzer::extractPitch(const std::vector<float>& frame, int sampleRat
         }
     }
 
+    // Confidence 계산: autocorrelation 피크 값 사용
+    // autocorr은 이미 정규화되어 있으므로 0~1 범위
+    result.confidence = maxValue;
+
     // Parabolic interpolation으로 정확한 피크 위치 찾기
     float refinedLag = findPeakParabolic(autocorr, peakLag);
 
     // 주파수 계산
     if (refinedLag > 0) {
-        return static_cast<float>(sampleRate) / refinedLag;
+        result.frequency = static_cast<float>(sampleRate) / refinedLag;
     }
 
-    return 0.0f;
+    return result;
 }
 
 void PitchAnalyzer::setMinFrequency(float freq) {
@@ -79,9 +112,9 @@ void PitchAnalyzer::setMaxFrequency(float freq) {
     maxFreq_ = freq;
 }
 
-std::vector<float> PitchAnalyzer::calculateAutocorrelation(const std::vector<float>& signal) {
+vector<float> PitchAnalyzer::calculateAutocorrelation(const vector<float>& signal) {
     size_t n = signal.size();
-    std::vector<float> autocorr(n, 0.0f);
+    vector<float> autocorr(n, 0.0f);
 
     for (size_t lag = 0; lag < n; ++lag) {
         float sum = 0.0f;
@@ -102,7 +135,7 @@ std::vector<float> PitchAnalyzer::calculateAutocorrelation(const std::vector<flo
     return autocorr;
 }
 
-float PitchAnalyzer::findPeakParabolic(const std::vector<float>& data, int index) {
+float PitchAnalyzer::findPeakParabolic(const vector<float>& data, int index) {
     if (index <= 0 || index >= static_cast<int>(data.size()) - 1) {
         return static_cast<float>(index);
     }
@@ -117,12 +150,12 @@ float PitchAnalyzer::findPeakParabolic(const std::vector<float>& data, int index
     return static_cast<float>(index) + offset;
 }
 
-std::vector<PitchPoint> PitchAnalyzer::applyMedianFilter(const std::vector<PitchPoint>& points, int windowSize) {
+vector<PitchPoint> PitchAnalyzer::applyMedianFilter(const vector<PitchPoint>& points, int windowSize) {
     if (points.size() < static_cast<size_t>(windowSize)) {
         return points;
     }
 
-    std::vector<PitchPoint> filtered;
+    vector<PitchPoint> filtered;
     int halfWindow = windowSize / 2;
 
     for (size_t i = 0; i < points.size(); ++i) {
@@ -131,7 +164,7 @@ std::vector<PitchPoint> PitchAnalyzer::applyMedianFilter(const std::vector<Pitch
         int end = std::min(static_cast<int>(points.size()) - 1, static_cast<int>(i) + halfWindow);
 
         // 윈도우 내 frequency 값들 수집
-        std::vector<float> windowFreqs;
+        vector<float> windowFreqs;
         for (int j = start; j <= end; ++j) {
             windowFreqs.push_back(points[j].frequency);
         }

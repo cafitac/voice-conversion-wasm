@@ -25,14 +25,39 @@ CPP_FILES=(
     "src/audio/AudioBuffer.cpp"
     "src/audio/AudioRecorder.cpp"
     "src/audio/AudioProcessor.cpp"
+    "src/audio/AudioPreprocessor.cpp"
     "src/analysis/PitchAnalyzer.cpp"
     "src/analysis/DurationAnalyzer.cpp"
+    "src/analysis/PowerAnalyzer.cpp"
     "src/effects/PitchShifter.cpp"
+    "src/effects/PhaseVocoder.cpp"
+    "src/effects/PhaseVocoderPitchShifter.cpp"
+    "src/effects/FastPitchShiftStrategy.cpp"
+    "src/effects/HighQualityPitchShiftStrategy.cpp"
+    "src/effects/ExternalPitchShiftStrategy.cpp"
     "src/effects/TimeStretcher.cpp"
     "src/effects/VoiceFilter.cpp"
+    "src/effects/FramePitchModifier.cpp"
+    "src/effects/TimeScaleModifier.cpp"
     "src/utils/WaveFile.cpp"
+    "src/utils/FFTWrapper.cpp"
+    "src/synthesis/FrameReconstructor.cpp"
     "src/visualization/CanvasRenderer.cpp"
     "src/visualization/TrimController.cpp"
+    # SoundTouch 라이브러리 (핵심 파일만)
+    "src/external/soundtouch/source/SoundTouch/SoundTouch.cpp"
+    "src/external/soundtouch/source/SoundTouch/FIFOSampleBuffer.cpp"
+    "src/external/soundtouch/source/SoundTouch/RateTransposer.cpp"
+    "src/external/soundtouch/source/SoundTouch/TDStretch.cpp"
+    "src/external/soundtouch/source/SoundTouch/AAFilter.cpp"
+    "src/external/soundtouch/source/SoundTouch/FIRFilter.cpp"
+    "src/external/soundtouch/source/SoundTouch/InterpolateLinear.cpp"
+    "src/external/soundtouch/source/SoundTouch/InterpolateCubic.cpp"
+    "src/external/soundtouch/source/SoundTouch/InterpolateShannon.cpp"
+    "src/external/soundtouch/source/SoundTouch/PeakFinder.cpp"
+    "src/external/soundtouch/source/SoundTouch/cpu_detect_x86.cpp"
+    # KissFFT 라이브러리
+    "src/external/kissfft/kiss_fft.c"
 )
 
 # 컴파일
@@ -47,7 +72,10 @@ em++ "${CPP_FILES[@]}" \
   -s EXPORT_ES6=0 \
   --bind \
   -O3 \
-  -I./src
+  -I./src \
+  -I./src/external/soundtouch/include \
+  -I./src/external/soundtouch/source \
+  -I./src/external/kissfft
 
 if [ $? -eq 0 ]; then
     echo ""

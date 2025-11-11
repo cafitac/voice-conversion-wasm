@@ -13,7 +13,20 @@
       "WebFetch(domain:developers.rtzr.ai)",
       "WebFetch(domain:github.com)",
       "Bash(git clone:*)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(./build_test.sh)",
+      "Bash(./test_pitch_analyzer:*)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Bash(./build_reconstruction_test.sh:*)",
+      "Bash(./test_reconstruction)",
+      "Bash(./tests/build_reconstruction_test.sh:*)",
+      "Bash(tree:*)",
+      "WebFetch(domain:en.wikipedia.org)",
+      "Bash(./tests/test_reconstruction)",
+      "Bash(./build_benchmark.sh:*)",
+      "Bash(./benchmark_pitchshift:*)",
+      "Read(//Users/reddit/CLionProjects/**)"
     ],
     "deny": [],
     "ask": []

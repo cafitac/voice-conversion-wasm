@@ -2,6 +2,11 @@
 #include <cstring>
 #include <algorithm>
 
+#ifndef __EMSCRIPTEN__
+#include <fstream>
+#include <stdexcept>
+#endif
+
 WaveFile::WaveFile() {
 }
 
@@ -135,3 +140,34 @@ int32_t WaveFile::readInt32(const std::vector<uint8_t>& data, size_t offset) {
         (data[offset + 3] << 24)
     );
 }
+
+#ifndef __EMSCRIPTEN__
+// 네이티브 파일 I/O 함수들
+
+AudioBuffer WaveFile::load(const std::string& filename) {
+    std::ifstream file(filename, std::ios::binary);
+    if (!file) {
+        throw std::runtime_error("Cannot open file: " + filename);
+    }
+
+    // 파일 전체를 읽기
+    std::vector<uint8_t> data((std::istreambuf_iterator<char>(file)),
+                              std::istreambuf_iterator<char>());
+    file.close();
+
+    return loadFromMemory(data);
+}
+
+void WaveFile::save(const std::string& filename, const AudioBuffer& buffer) {
+    std::vector<uint8_t> data = saveToMemory(buffer);
+
+    std::ofstream file(filename, std::ios::binary);
+    if (!file) {
+        throw std::runtime_error("Cannot create file: " + filename);
+    }
+
+    file.write(reinterpret_cast<const char*>(data.data()), data.size());
+    file.close();
+}
+
+#endif

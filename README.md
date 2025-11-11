@@ -59,3 +59,29 @@ C++로 작성한 코드를 WebAssembly로 컴파일하여 웹 브라우저에서
 ```bash
 ./runserver.sh
 ```
+
+## 테스트
+
+### Pitch 분석 테스트
+
+```bash
+./tests/build_test.sh
+./tests/test_pitch_analyzer original.wav
+```
+
+결과 파일: `tests/pitch_analysis.csv`
+
+### FrameData 재구성 테스트
+
+```bash
+./tests/build_reconstruction_test.sh
+./tests/test_reconstruction
+```
+
+생성된 파일:
+- `tests/reconstructed.wav` - 재구성 품질 확인
+- `tests/pitch_shifted.wav` - Pitch +2 semitones
+- `tests/time_stretched.wav` - Duration 1.2배
+- `tests/combined_modified.wav` - 복합 수정
+
+더 자세한 정보는 [RECONSTRUCTION_GUIDE.md](./RECONSTRUCTION_GUIDE.md)를 참고하세요.

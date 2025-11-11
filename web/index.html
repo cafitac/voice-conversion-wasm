@@ -30,27 +30,9 @@
             <h2>2. 음성 분석</h2>
             <div class="controls">
                 <button id="analyzeVoice" class="btn btn-primary" disabled>음성 분석</button>
-                <button id="loadWhisperModel" class="btn btn-primary" disabled>STT 모델 로드</button>
-                <button id="transcribeVoice" class="btn btn-primary" disabled>STT 변환</button>
-                <button id="trimAudio" class="btn btn-warning" disabled style="margin-left: 20px;">선택 영역으로 자르기</button>
-                <button id="resetTrim" class="btn btn-secondary" disabled>자르기 초기화</button>
-            </div>
-            <div class="status" id="sttStatus"></div>
-            <div id="trimStatus" style="margin: 5px 0; font-size: 14px; color: #4CAF50;"></div>
-            <div id="modelLoadProgress" style="display: none; margin: 10px 0;">
-                <div style="background: #333; border-radius: 10px; overflow: hidden; height: 20px;">
-                    <div id="progressBar" style="background: #4CAF50; height: 100%; width: 0%; transition: width 0.3s;"></div>
-                </div>
-                <div id="progressText" style="margin-top: 5px; font-size: 14px;"></div>
             </div>
             <div class="chart-container" style="position: relative;">
                 <canvas id="analysisCanvas" width="1200" height="600"></canvas>
-            </div>
-            <div style="margin-top: 10px;">
-                <canvas id="trimCanvas" width="1200" height="60" style="cursor: pointer; display: none;"></canvas>
-            </div>
-            <div id="timelineContainer" style="display: none;">
-                <canvas id="timelineCanvas" width="1200" height="100"></canvas>
             </div>
         </section>
 
@@ -60,6 +42,15 @@
 
             <div class="effect-group">
                 <h3>Pitch 조절</h3>
+                <div style="margin-bottom: 10px;">
+                    <label for="pitchQuality">알고리즘 품질:</label>
+                    <select id="pitchQuality">
+                        <option value="external" selected>External (SoundTouch) - 권장</option>
+                        <option value="high">High Quality (Phase Vocoder) - 최고 품질</option>
+                        <option value="fast">Fast (Simple Resampling) - 빠름</option>
+                    </select>
+                    <span id="currentQuality" style="margin-left: 10px; font-size: 12px; color: #666;"></span>
+                </div>
                 <label for="pitchShift">Pitch Shift (반음): <span id="pitchValue">0</span></label>
                 <input type="range" id="pitchShift" min="-12" max="12" value="0" step="0.5">
                 <button id="applyPitchShift" class="btn btn-primary" disabled>적용</button>
@@ -130,7 +121,8 @@
             import('./js/ui-controller.js').then(controllerModule => {
                 console.log('UI Controller module loaded');
                 const app = new controllerModule.UIController();
-                console.log('UIController instance created');
+                window.app = app; // 전역으로 저장
+                console.log('UIController instance created and stored globally');
                 app.init();
             }).catch(err => {
                 console.error('UI Controller loading error:', err);

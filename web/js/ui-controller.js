@@ -1,22 +1,15 @@
 import { AudioRecorder } from './audio-recorder.js';
 import { AudioPlayer } from './audio-player.js';
-import { WhisperController } from './whisper-controller.js';
-import { TimelineRenderer } from './timeline-renderer.js';
-import { AudioTrimmer } from './audio-trimmer.js';
 
 export class UIController {
     constructor() {
         this.recorder = null;
         this.player = new AudioPlayer();
-        this.whisper = new WhisperController();
-        this.timeline = new TimelineRenderer('timelineCanvas');
-        this.trimmer = null; // Will be initialized after module loads
         this.module = null;
         this.originalAudio = null;
         this.processedAudio = null;
         this.currentAudioData = null;
         this.sampleRate = 48000; // 브라우저 기본값
-        this.transcriptionWords = [];
         this.audioMaxTime = 0;
         this.cachedAudioPtr = null;
         this.cachedAudioLength = 0;
@@ -31,12 +24,16 @@ export class UIController {
 
         this.module = Module;
         this.recorder = new AudioRecorder(this.module);
-        this.trimmer = new AudioTrimmer('analysisCanvas', this.module, this);
         this.module.init();
         this.setupEventListeners();
+
+        // 초기 Pitch 품질 설정 (기본값: external)
+        this.setPitchQuality('external');
     }
 
     setupEventListeners() {
+        console.log('Setting up event listeners...');
+
         // 녹음 버튼
         document.getElementById('startRecord').addEventListener('click', () => this.startRecording());
         document.getElementById('stopRecord').addEventListener('click', () => this.stopRecording());
@@ -47,10 +44,6 @@ export class UIController {
 
         // 분석 버튼
         document.getElementById('analyzeVoice').addEventListener('click', () => this.analyzeVoice());
-        document.getElementById('loadWhisperModel').addEventListener('click', () => this.loadWhisperModel());
-        document.getElementById('transcribeVoice').addEventListener('click', () => this.transcribeVoice());
-        document.getElementById('trimAudio').addEventListener('click', () => this.trimAudio());
-        document.getElementById('resetTrim').addEventListener('click', () => this.resetTrim());
 
         // 효과 버튼
         document.getElementById('applyPitchShift').addEventListener('click', () => this.applyPitchShift());
@@ -69,6 +62,11 @@ export class UIController {
         document.getElementById('timeStretch').addEventListener('input', (e) => {
             document.getElementById('timeValue').textContent = e.target.value;
         });
+
+        // Pitch 품질 선택
+        document.getElementById('pitchQuality').addEventListener('change', (e) => {
+            this.setPitchQuality(e.target.value);
+        });
         document.getElementById('filterParam1').addEventListener('input', (e) => {
             document.getElementById('param1Value').textContent = e.target.value;
         });
@@ -78,15 +76,36 @@ export class UIController {
     }
 
     async startRecording() {
-        document.getElementById('recordStatus').textContent = '녹음 중...';
+        document.getElementById('recordStatus').textContent = '마이크 권한 요청 중...';
         document.getElementById('startRecord').disabled = true;
         document.getElementById('stopRecord').disabled = false;
 
         try {
             await this.recorder.startRecording();
+            document.getElementById('recordStatus').textContent = '녹음 중...';
         } catch (error) {
             console.error('녹음 시작 실패:', error);
-            document.getElementById('recordStatus').textContent = '녹음 시작 실패: ' + error.message;
+
+            // 버튼 상태 복원
+            document.getElementById('startRecord').disabled = false;
+            document.getElementById('stopRecord').disabled = true;
+
+            // 에러 메시지 표시
+            const errorMsg = '녹음 시작 실패: ' + error.message;
+            document.getElementById('recordStatus').textContent = errorMsg;
+            document.getElementById('recordStatus').style.color = '#f44336';
+
+            // Alert도 표시
+            alert('🎤 마이크 접근 권한이 필요합니다.\n\n' +
+                  '브라우저 설정에서 마이크 권한을 허용해주세요.\n\n' +
+                  '1. 주소창 왼쪽의 자물쇠/정보 아이콘을 클릭\n' +
+                  '2. 마이크 권한을 "허용"으로 변경\n' +
+                  '3. 페이지를 새로고침');
+
+            // 3초 후 상태 메시지 색상 복원
+            setTimeout(() => {
+                document.getElementById('recordStatus').style.color = '';
+            }, 3000);
         }
     }
 
@@ -100,7 +119,6 @@ export class UIController {
         document.getElementById('playOriginal').disabled = false;
         document.getElementById('downloadOriginal').disabled = false;
         document.getElementById('analyzeVoice').disabled = false;
-        document.getElementById('loadWhisperModel').disabled = false;
         document.getElementById('applyPitchShift').disabled = false;
         document.getElementById('applyTimeStretch').disabled = false;
         document.getElementById('applyFilter').disabled = false;
@@ -142,7 +160,6 @@ export class UIController {
             document.getElementById('playOriginal').disabled = false;
             document.getElementById('downloadOriginal').disabled = false;
             document.getElementById('analyzeVoice').disabled = false;
-            document.getElementById('loadWhisperModel').disabled = false;
             document.getElementById('applyPitchShift').disabled = false;
             document.getElementById('applyTimeStretch').disabled = false;
             document.getElementById('applyFilter').disabled = false;
@@ -216,128 +233,57 @@ export class UIController {
 
         this.module._free(dataPtr);
 
-        // Calculate max time and enable trimmer
+        // Calculate max time
         this.audioMaxTime = float32Data.length / this.sampleRate;
-        this.trimmer.enable(this.audioMaxTime);
-        this.trimmer.updateStatus();
-        document.getElementById('trimAudio').disabled = false;
-        document.getElementById('resetTrim').disabled = false;
-
-        // If we have transcription data, update timeline
-        if (this.transcriptionWords.length > 0) {
-            this.timeline.setWords(this.transcriptionWords, this.audioMaxTime);
-            this.timeline.render();
-        }
     }
 
-    async loadWhisperModel() {
-        const sttStatus = document.getElementById('sttStatus');
-        const progressContainer = document.getElementById('modelLoadProgress');
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        const loadButton = document.getElementById('loadWhisperModel');
-        const transcribeButton = document.getElementById('transcribeVoice');
-
+    setPitchQuality(quality) {
         try {
-            loadButton.disabled = true;
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-            sttStatus.textContent = 'Whisper 모듈 초기화 중...';
-
-            // Initialize Whisper if not already done
-            if (!this.whisper.whisperModule) {
-                await this.whisper.init();
-            }
-
-            // Load model with progress
-            const modelUrl = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin';
-            sttStatus.textContent = '모델 다운로드 중...';
-
-            await this.whisper.loadModel(modelUrl, (progress) => {
-                progressBar.style.width = progress.percent.toFixed(1) + '%';
-                const loadedMB = (progress.loaded / 1024 / 1024).toFixed(1);
-                const totalMB = (progress.total / 1024 / 1024).toFixed(1);
-                progressText.textContent = `${loadedMB}MB / ${totalMB}MB (${progress.percent.toFixed(1)}%)`;
-
-                if (progress.status) {
-                    sttStatus.textContent = progress.status;
-                }
-            });
-
-            sttStatus.textContent = '모델 로드 완료!';
-            progressText.textContent = '모델이 준비되었습니다.';
-            transcribeButton.disabled = false;
-
-            setTimeout(() => {
-                progressContainer.style.display = 'none';
-            }, 2000);
-
+            this.module.setPitchShiftQuality(quality);
+            const currentQualityName = this.module.getPitchShiftQuality();
+            document.getElementById('currentQuality').textContent = `현재: ${currentQualityName}`;
+            console.log(`Pitch quality set to: ${quality} (${currentQualityName})`);
         } catch (error) {
-            console.error('모델 로드 실패:', error);
-            sttStatus.textContent = '모델 로드 실패: ' + error.message;
-            loadButton.disabled = false;
-            progressContainer.style.display = 'none';
-        }
-    }
-
-    async transcribeVoice() {
-        const sttStatus = document.getElementById('sttStatus');
-
-        if (!this.whisper.modelLoaded) {
-            sttStatus.textContent = '먼저 STT 모델을 로드해주세요.';
-            return;
-        }
-
-        try {
-            sttStatus.textContent = 'STT 변환 중...';
-            document.getElementById('transcribeVoice').disabled = true;
-
-            // Convert WAV to Float32
-            const float32Data = this.wavToFloat32(this.currentAudioData);
-
-            // Transcribe
-            const words = await this.whisper.transcribe(float32Data, this.sampleRate, 'ko');
-
-            // Calculate max time
-            const maxTime = float32Data.length / this.sampleRate;
-
-            this.transcriptionWords = words;
-
-            sttStatus.textContent = `STT 완료! (${words.length} 단어)`;
-            document.getElementById('transcribeVoice').disabled = false;
-
-            // Show timeline
-            document.getElementById('timelineContainer').style.display = 'block';
-
-            // Render timeline
-            this.timeline.setWords(words, maxTime);
-            this.timeline.render();
-
-            console.log('Transcription words:', words);
-        } catch (error) {
-            console.error('STT 변환 실패:', error);
-            sttStatus.textContent = 'STT 변환 실패: ' + error.message;
-            document.getElementById('transcribeVoice').disabled = false;
+            console.error('Failed to set pitch quality:', error);
         }
     }
 
     async applyPitchShift() {
-        const semitones = parseFloat(document.getElementById('pitchShift').value);
-        const float32Data = this.wavToFloat32(this.currentAudioData);
+        console.log('applyPitchShift called');
 
-        const dataPtr = this.module._malloc(float32Data.length * 4);
-        this.module.HEAPF32.set(float32Data, dataPtr / 4);
+        try {
+            const semitones = parseFloat(document.getElementById('pitchShift').value);
+            console.log('Pitch shift semitones:', semitones);
 
-        const result = this.module.applyPitchShift(dataPtr, float32Data.length, this.sampleRate, semitones);
-        this.module._free(dataPtr);
+            if (!this.currentAudioData) {
+                alert('먼저 오디오를 녹음하거나 업로드하세요.');
+                return;
+            }
 
-        this.processedAudio = this.float32ToWav(new Float32Array(result));
-        this.currentAudioData = this.processedAudio;
+            const float32Data = this.wavToFloat32(this.currentAudioData);
+            console.log('Input audio samples:', float32Data.length);
 
-        document.getElementById('playProcessed').disabled = false;
-        document.getElementById('downloadProcessed').disabled = false;
+            const dataPtr = this.module._malloc(float32Data.length * 4);
+            this.module.HEAPF32.set(float32Data, dataPtr / 4);
 
-        this.drawWaveform(this.processedAudio);
+            const result = this.module.applyPitchShift(dataPtr, float32Data.length, this.sampleRate, semitones);
+            console.log('Pitch shift result:', result);
+
+            this.module._free(dataPtr);
+
+            this.processedAudio = this.float32ToWav(new Float32Array(result));
+            this.currentAudioData = this.processedAudio;
+            console.log('Processed audio created, size:', this.processedAudio.length);
+
+            document.getElementById('playProcessed').disabled = false;
+            document.getElementById('downloadProcessed').disabled = false;
+
+            this.drawWaveform(this.processedAudio);
+            console.log('Pitch shift completed successfully');
+        } catch (error) {
+            console.error('Pitch shift 실패:', error);
+            alert('Pitch shift 실패: ' + error.message);
+        }
     }
 
     async applyTimeStretch() {
@@ -381,48 +327,30 @@ export class UIController {
     }
 
     async playProcessed() {
-        await this.player.playWavData(this.processedAudio);
+        console.log('playProcessed called');
+        console.log('processedAudio:', this.processedAudio);
+
+        try {
+            if (!this.processedAudio) {
+                console.error('processedAudio is null or undefined');
+                alert('먼저 음성 효과를 적용해주세요.');
+                return;
+            }
+            console.log('Playing processed audio, size:', this.processedAudio.length);
+            await this.player.playWavData(this.processedAudio);
+            console.log('Playback completed');
+        } catch (error) {
+            console.error('재생 실패:', error);
+            alert('재생 실패: ' + error.message);
+        }
     }
 
     downloadProcessed() {
+        if (!this.processedAudio) {
+            alert('먼저 음성 효과를 적용해주세요.');
+            return;
+        }
         this.player.downloadWav(this.processedAudio, 'processed.wav');
-    }
-
-    trimAudio() {
-        const range = this.trimmer.getTrimRange();
-        const float32Data = this.wavToFloat32(this.currentAudioData);
-
-        // Calculate sample indices
-        const startSample = Math.floor(range.start * this.sampleRate);
-        const endSample = Math.floor(range.end * this.sampleRate);
-
-        // Extract the selected region
-        const trimmedData = float32Data.slice(startSample, endSample);
-
-        // Convert back to WAV
-        const trimmedWav = this.float32ToWav(trimmedData);
-
-        // Update current audio
-        this.currentAudioData = trimmedWav;
-        this.processedAudio = trimmedWav;
-
-        // Update UI
-        document.getElementById('playProcessed').disabled = false;
-        document.getElementById('downloadProcessed').disabled = false;
-        document.getElementById('trimStatus').textContent = `자르기 완료! 새 길이: ${(trimmedData.length / this.sampleRate).toFixed(2)}s`;
-
-        // Disable trimmer and re-analyze
-        this.trimmer.disable();
-        this.analyzeVoice();
-
-        // Redraw waveform
-        this.drawWaveform(this.currentAudioData);
-    }
-
-    resetTrim() {
-        this.trimmer.reset();
-        this.trimmer.updateStatus();
-        document.getElementById('trimStatus').textContent = '자르기 영역이 초기화되었습니다.';
     }
 
     reset() {

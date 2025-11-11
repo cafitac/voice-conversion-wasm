@@ -17,6 +17,15 @@ public:
     // WAV 파일에서 로드 (메모리에서)
     AudioBuffer loadFromMemory(const std::vector<uint8_t>& data);
 
+#ifndef __EMSCRIPTEN__
+    // 파일 I/O 함수들 (네이티브 빌드 전용)
+    // WAV 파일에서 로드
+    AudioBuffer load(const std::string& filename);
+
+    // WAV 파일로 저장
+    void save(const std::string& filename, const AudioBuffer& buffer);
+#endif
+
     // WAV 헤더 생성
     static std::vector<uint8_t> createWavHeader(int sampleRate, int channels, int numSamples);
 
