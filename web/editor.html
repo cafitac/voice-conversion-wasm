@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>인터랙티브 편집 - 전체 화면</title>
+    <link rel="stylesheet" href="css/editor.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="editor-container">
+        <!-- 헤더 -->
+        <header class="editor-header">
+            <div class="header-left">
+                <button id="backBtn" class="btn-back">← 메인으로 돌아가기</button>
+                <h1>인터랙티브 편집</h1>
+            </div>
+            <div class="header-right">
+                <button id="resetEdit" class="btn btn-warning">편집 초기화</button>
+                <button id="applyEdit" class="btn btn-success">편집 적용</button>
+            </div>
+        </header>
+
+        <!-- 차트 영역 -->
+        <main class="editor-main">
+            <div id="editor-charts" class="charts-wrapper"></div>
+        </main>
+
+        <!-- 푸터 정보 -->
+        <footer class="editor-footer">
+            <div class="edit-instructions">
+                <div class="instruction-item">
+                    <strong>Pitch 편집:</strong> 파란 점을 위/아래로 드래그하여 반음 조정
+                </div>
+                <div class="instruction-item">
+                    <strong>Duration 편집:</strong> 브러시로 구간을 선택하고 ratio 입력 (1.5=느리게, 0.5=빠르게)
+                </div>
+                <div class="instruction-item">
+                    <strong>확대/축소:</strong> 마우스 휠 사용
+                </div>
+                <div class="instruction-item">
+                    <strong>이동:</strong> 차트를 드래그
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="main.js"></script>
+    <script type="module">
+        import { InteractiveEditor } from './js/interactive-editor.js';
+
+        // WASM 초기화
+        async function initializeWasm() {
+            console.log('Initializing WASM...');
+            const moduleInstance = await Module({
+                onRuntimeInitialized() {
+                    console.log('WASM Runtime initialized!');
+                }
+            });
+            window.Module = moduleInstance;
+            return moduleInstance;
+        }
+
+        // 편집 데이터 로드
+        function loadEditData() {
+            const editData = sessionStorage.getItem('editData');
+            if (editData) {
+                return JSON.parse(editData);
+            }
+            return null;
+        }
+
+        // 편집 데이터 저장
+        function saveEditData(editor, pipeline) {
+            sessionStorage.setItem('editResults', JSON.stringify({
+                pipeline: pipeline,
+                keyPoints: editor.keyPoints,  // Key points만 저장 (C++에서 interpolation)
+                durationRegions: editor.durationRegions
+            }));
+        }
+
+        // 페이지 초기화
+        initializeWasm().then(() => {
+            const editData = loadEditData();
+
+            if (!editData) {
+                alert('편집할 데이터가 없습니다. 메인 페이지에서 먼저 분석을 진행해주세요.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // InteractiveEditor 생성
+            const editor = new InteractiveEditor('editor-charts');
+            window.editor = editor; // 전역 저장
+
+            // 프레임 데이터 설정
+            editor.setFrameData(editData.frames);
+
+            // 기존 편집 데이터가 있다면 복원
+            if (editData.keyPoints && editData.keyPoints.length > 0) {
+                editor.keyPoints = editData.keyPoints;
+                // Key points를 기반으로 pitchEdits 재계산 (시각화용)
+                editor.interpolateAllFrames();
+            }
+            if (editData.durationRegions && editData.durationRegions.length > 0) {
+                editor.durationRegions = editData.durationRegions;
+                editor.updateDurationRegionsDisplay();
+            }
+            editor.render();
+
+            // 버튼 이벤트 리스너
+            document.getElementById('backBtn').addEventListener('click', () => {
+                // 현재 편집 데이터 저장
+                saveEditData(editor, editData.pipeline);
+                window.location.href = 'index.html';
+            });
+
+            document.getElementById('resetEdit').addEventListener('click', () => {
+                if (confirm('모든 편집 내용을 초기화하시겠습니까?')) {
+                    editor.reset();
+                }
+            });
+
+            document.getElementById('applyEdit').addEventListener('click', () => {
+                // 편집 데이터 저장
+                saveEditData(editor, editData.pipeline);
+                alert('편집 내용이 저장되었습니다. 메인 페이지에서 적용하세요.');
+                window.location.href = 'index.html';
+            });
+        }).catch(err => {
+            console.error('WASM initialization error:', err);
+            alert('초기화 오류가 발생했습니다.');
+        });
+    </script>
+</body>
+</html>

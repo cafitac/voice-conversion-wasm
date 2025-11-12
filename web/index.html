@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>음성 변조 앱</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -25,14 +26,82 @@
             <canvas id="waveformCanvas"></canvas>
         </section>
 
-        <!-- 분석 섹션 -->
+        <!-- 분석 및 인터랙티브 편집 섹션 -->
         <section class="card">
-            <h2>2. 음성 분석</h2>
-            <div class="controls">
-                <button id="analyzeVoice" class="btn btn-primary" disabled>음성 분석</button>
+            <h2>2. 음성 분석 및 인터랙티브 편집</h2>
+
+            <!-- 파이프라인 선택 탭 -->
+            <div class="pipeline-tabs">
+                <button id="tab-highquality" class="tab-btn active" data-tab="highquality">
+                    HighQuality (자체 구현)
+                </button>
+                <button id="tab-external" class="tab-btn" data-tab="external">
+                    External (SoundTouch Hybrid)
+                </button>
+                <button id="tab-compare" class="tab-btn" data-tab="compare">
+                    A/B 비교
+                </button>
             </div>
-            <div class="chart-container" style="position: relative;">
-                <canvas id="analysisCanvas" width="1200" height="600"></canvas>
+
+            <!-- HighQuality 파이프라인 -->
+            <div id="pipeline-highquality" class="pipeline-view active">
+                <div class="controls">
+                    <button id="analyze-hq" class="btn btn-primary" disabled>분석 (자체 알고리즘)</button>
+                    <button id="edit-fullscreen-hq" class="btn btn-secondary" disabled>전체 화면 편집</button>
+                    <button id="apply-hq" class="btn btn-success" disabled>편집 적용</button>
+                    <button id="reset-hq" class="btn btn-warning" disabled>편집 초기화</button>
+                </div>
+                <div id="chart-hq" class="interactive-chart-container"></div>
+                <div class="edit-info">
+                    <p>📌 <strong>Pitch 편집:</strong> 파란 점을 위/아래로 드래그하세요</p>
+                    <p>📌 <strong>Duration 편집:</strong> 마우스로 구간을 선택하고 ratio를 입력하세요</p>
+                    <p>💡 <strong>Tip:</strong> 더 편한 편집을 원하시면 "전체 화면 편집" 버튼을 클릭하세요</p>
+                </div>
+                <div id="stats-hq" class="stats-panel hidden"></div>
+            </div>
+
+            <!-- External 파이프라인 -->
+            <div id="pipeline-external" class="pipeline-view hidden">
+                <div class="controls">
+                    <button id="analyze-ext" class="btn btn-primary" disabled>분석 (SoundTouch)</button>
+                    <button id="edit-fullscreen-ext" class="btn btn-secondary" disabled>전체 화면 편집</button>
+                    <button id="apply-ext" class="btn btn-success" disabled>편집 적용</button>
+                    <button id="reset-ext" class="btn btn-warning" disabled>편집 초기화</button>
+                </div>
+                <div id="chart-ext" class="interactive-chart-container"></div>
+                <div class="edit-info">
+                    <p>📌 <strong>Pitch 편집:</strong> 파란 점을 위/아래로 드래그하세요</p>
+                    <p>📌 <strong>Duration 편집:</strong> 마우스로 구간을 선택하고 ratio를 입력하세요</p>
+                    <p>💡 <strong>Tip:</strong> 더 편한 편집을 원하시면 "전체 화면 편집" 버튼을 클릭하세요</p>
+                </div>
+                <div id="stats-ext" class="stats-panel hidden"></div>
+            </div>
+
+            <!-- A/B 비교 뷰 -->
+            <div id="pipeline-compare" class="pipeline-view hidden">
+                <div class="controls">
+                    <button id="compare-run" class="btn btn-primary" disabled>같은 편집으로 비교</button>
+                </div>
+                <div class="compare-layout">
+                    <div class="compare-left">
+                        <h3>HighQuality (자체 구현)</h3>
+                        <div id="chart-compare-hq" class="compare-chart"></div>
+                        <button id="play-compare-hq" class="btn btn-secondary" disabled>재생</button>
+                    </div>
+                    <div class="compare-right">
+                        <h3>External (SoundTouch)</h3>
+                        <div id="chart-compare-ext" class="compare-chart"></div>
+                        <button id="play-compare-ext" class="btn btn-secondary" disabled>재생</button>
+                    </div>
+                </div>
+                <div id="compare-stats" class="compare-stats hidden"></div>
+                <div class="report-controls hidden" id="report-controls">
+                    <h3 style="margin-top: 24px; margin-bottom: 12px;">벤치마크 리포트</h3>
+                    <div class="controls">
+                        <button id="download-report-json" class="btn btn-success">JSON 다운로드</button>
+                        <button id="download-report-html" class="btn btn-success">HTML 리포트 다운로드</button>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -58,6 +127,15 @@
 
             <div class="effect-group">
                 <h3>Time Stretch</h3>
+                <div style="margin-bottom: 10px;">
+                    <label for="timeStretchQuality">알고리즘 품질:</label>
+                    <select id="timeStretchQuality">
+                        <option value="external" selected>External (SoundTouch) - 권장</option>
+                        <option value="high">High Quality (WSOLA) - 고품질</option>
+                        <option value="fast">Fast (Frame Manipulation) - 빠름</option>
+                    </select>
+                    <span id="currentTimeStretchQuality" style="margin-left: 10px; font-size: 12px; color: #666;"></span>
+                </div>
                 <label for="timeStretch">Speed (배속): <span id="timeValue">1.0</span></label>
                 <input type="range" id="timeStretch" min="0.5" max="2.0" value="1.0" step="0.1">
                 <button id="applyTimeStretch" class="btn btn-primary" disabled>적용</button>
@@ -83,7 +161,7 @@
 
         <!-- 재생 및 다운로드 섹션 -->
         <section class="card">
-            <h2>4. 결과</h2>
+            <h2>4. 결과 재생 및 다운로드</h2>
             <div class="controls">
                 <button id="playProcessed" class="btn btn-success" disabled>변조된 음성 재생</button>
                 <button id="downloadProcessed" class="btn btn-success" disabled>변조된 음성 다운로드</button>

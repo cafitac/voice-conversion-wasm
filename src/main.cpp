@@ -9,6 +9,7 @@
 #include "analysis/PitchAnalyzer.h"
 #include "analysis/DurationAnalyzer.h"
 #include "analysis/PowerAnalyzer.h"
+#include "analysis/QualityAnalyzer.h"
 #include "effects/PhaseVocoderPitchShifter.h"
 #include "effects/TimeStretcher.h"
 #include "effects/VoiceFilter.h"
@@ -22,6 +23,8 @@
 #include "effects/FastTimeStretchStrategy.h"
 #include "effects/HighQualityTimeStretchStrategy.h"
 #include "effects/ExternalTimeStretchStrategy.h"
+#include "effects/HighQualityPerFrameEditor.h"
+#include "effects/ExternalPerFrameEditor.h"
 #include "synthesis/FrameReconstructor.h"
 #include "utils/WaveFile.h"
 #include "visualization/CanvasRenderer.h"
@@ -393,7 +396,404 @@ void resetTrimHandles() {
   }
 }
 
+// FrameData를 JS Array로 변환하여 반환
+emscripten::val getFrameDataArray(uintptr_t dataPtr, int length, int sampleRate) {
+  init();
+
+  // Float32Array를 std::vector로 변환
+  float *audioData = reinterpret_cast<float *>(dataPtr);
+  std::vector<float> samples(audioData, audioData + length);
+
+  // AudioBuffer 생성
+  AudioBuffer buffer(sampleRate, 1);
+  buffer.setData(samples);
+
+  // AudioPreprocessor로 프레임 분할
+  AudioPreprocessor preprocessor;
+  std::vector<FrameData> frames = preprocessor.process(buffer, 0.042f, 0.021f);  // ~2048 samples at 48kHz
+
+  // PitchAnalyzer로 각 프레임의 pitch 분석
+  PitchAnalyzer pitchAnalyzer;
+
+  // JS Array 생성
+  emscripten::val jsArray = emscripten::val::array();
+
+  for (size_t i = 0; i < frames.size(); ++i) {
+    const FrameData &frame = frames[i];
+
+    // 각 프레임의 pitch 분석
+    PitchResult pitchResult = pitchAnalyzer.extractPitch(frame.samples, sampleRate);
+
+    // JS Object 생성
+    emscripten::val jsObject = emscripten::val::object();
+    jsObject.set("frameIndex", static_cast<int>(i));
+    jsObject.set("time", frame.time);
+    jsObject.set("pitch", pitchResult.frequency);
+    jsObject.set("rms", frame.rms);
+    jsObject.set("isVoice", frame.isVoice);
+
+    // Array에 추가
+    jsArray.call<void>("push", jsObject);
+  }
+
+  return jsArray;
+}
+
+// HighQuality 파이프라인으로 편집 적용
+emscripten::val applyEditsHighQuality(
+    uintptr_t dataPtr,
+    int length,
+    int sampleRate,
+    emscripten::val pitchEditsArray,
+    emscripten::val durationRegionsArray
+) {
+  init();
+
+  // Float32Array를 std::vector로 변환
+  float *audioData = reinterpret_cast<float *>(dataPtr);
+  std::vector<float> samples(audioData, audioData + length);
+
+  // AudioBuffer 생성
+  AudioBuffer buffer(sampleRate, 1);
+  buffer.setData(samples);
+
+  // AudioPreprocessor로 프레임 분할
+  AudioPreprocessor preprocessor;
+  std::vector<FrameData> frames = preprocessor.process(buffer, 0.042f, 0.021f);
+
+  // JS Array에서 Pitch Edits 파싱
+  std::vector<float> pitchShiftSemitones(frames.size(), 0.0f);
+  int pitchEditsLength = pitchEditsArray["length"].as<int>();
+
+  for (int i = 0; i < pitchEditsLength; ++i) {
+    emscripten::val edit = pitchEditsArray[i];
+    int frameIndex = edit["frameIndex"].as<int>();
+    float semitones = edit["semitones"].as<float>();
+
+    if (frameIndex >= 0 && frameIndex < static_cast<int>(pitchShiftSemitones.size())) {
+      pitchShiftSemitones[frameIndex] = semitones;
+    }
+  }
+
+  // JS Array에서 Duration Regions 파싱
+  std::vector<TimeStretchRegion> regions;
+  int regionsLength = durationRegionsArray["length"].as<int>();
+
+  for (int i = 0; i < regionsLength; ++i) {
+    emscripten::val region = durationRegionsArray[i];
+    TimeStretchRegion r;
+    r.startFrame = region["startFrame"].as<int>();
+    r.endFrame = region["endFrame"].as<int>();
+    r.ratio = region["ratio"].as<float>();
+    regions.push_back(r);
+  }
+
+  // HighQualityPerFrameEditor로 편집 적용
+  HighQualityPerFrameEditor editor;
+  AudioBuffer result;
+
+  if (!regions.empty() && pitchEditsLength > 0) {
+    // Pitch + Duration 통합 편집
+    result = editor.applyAllEdits(frames, pitchShiftSemitones, regions, sampleRate, 1);
+  } else if (!regions.empty()) {
+    // Duration만 편집
+    result = editor.applyDurationEdits(frames, regions, sampleRate, 1);
+  } else if (pitchEditsLength > 0) {
+    // Pitch만 편집
+    result = editor.applyPitchEdits(frames, pitchShiftSemitones, sampleRate, 1);
+  } else {
+    // 편집 없음 - 원본 그대로
+    result = AudioBuffer(sampleRate, 1);
+    result.setData(samples);
+  }
+
+  // Float32Array로 변환하여 반환
+  const std::vector<float> &outputData = result.getData();
+  emscripten::val outputArray = emscripten::val::global("Float32Array").new_(outputData.size());
+
+  for (size_t i = 0; i < outputData.size(); ++i) {
+    outputArray.set(i, outputData[i]);
+  }
+
+  return outputArray;
+}
+
+// HighQuality 파이프라인으로 편집 적용 (Key Points 사용)
+emscripten::val applyEditsHighQualityWithKeyPoints(
+    uintptr_t dataPtr,
+    int length,
+    int sampleRate,
+    emscripten::val keyPointsArray,
+    emscripten::val durationRegionsArray
+) {
+  init();
+
+  // Float32Array를 std::vector로 변환
+  float *audioData = reinterpret_cast<float *>(dataPtr);
+  std::vector<float> samples(audioData, audioData + length);
+
+  // AudioBuffer 생성
+  AudioBuffer buffer(sampleRate, 1);
+  buffer.setData(samples);
+
+  // AudioPreprocessor로 프레임 분할
+  AudioPreprocessor preprocessor;
+  std::vector<FrameData> frames = preprocessor.process(buffer, 0.042f, 0.021f);
+
+  // JS Array에서 Key Points 파싱
+  std::vector<PitchKeyPoint> keyPoints;
+  int keyPointsLength = keyPointsArray["length"].as<int>();
+
+  for (int i = 0; i < keyPointsLength; ++i) {
+    emscripten::val kp = keyPointsArray[i];
+    PitchKeyPoint point;
+    point.frameIndex = kp["frameIndex"].as<int>();
+    point.semitones = kp["semitones"].as<float>();
+    keyPoints.push_back(point);
+  }
+
+  // JS Array에서 Duration Regions 파싱
+  std::vector<TimeStretchRegion> regions;
+  int regionsLength = durationRegionsArray["length"].as<int>();
+
+  for (int i = 0; i < regionsLength; ++i) {
+    emscripten::val region = durationRegionsArray[i];
+    TimeStretchRegion r;
+    r.startFrame = region["startFrame"].as<int>();
+    r.endFrame = region["endFrame"].as<int>();
+    r.ratio = region["ratio"].as<float>();
+    regions.push_back(r);
+  }
+
+  // HighQualityPerFrameEditor로 편집 적용
+  HighQualityPerFrameEditor editor;
+  AudioBuffer result;
+
+  if (!regions.empty() && !keyPoints.empty()) {
+    // Pitch (key points) + Duration 통합 편집
+    // Duration은 아직 key points를 지원하지 않으므로 pitch만 key points 사용
+    AudioBuffer pitchEdited = editor.applyPitchEditsWithKeyPoints(frames, keyPoints, sampleRate, 1);
+    // Duration은 별도 처리 필요 (TODO: 통합)
+    result = pitchEdited;
+  } else if (!regions.empty()) {
+    // Duration만 편집
+    result = editor.applyDurationEdits(frames, regions, sampleRate, 1);
+  } else if (!keyPoints.empty()) {
+    // Pitch만 편집 (key points 사용)
+    result = editor.applyPitchEditsWithKeyPoints(frames, keyPoints, sampleRate, 1);
+  } else {
+    // 편집 없음 - 원본 그대로
+    result = AudioBuffer(sampleRate, 1);
+    result.setData(samples);
+  }
+
+  // Float32Array로 변환하여 반환
+  const std::vector<float> &outputData = result.getData();
+  emscripten::val outputArray = emscripten::val::global("Float32Array").new_(outputData.size());
+
+  for (size_t i = 0; i < outputData.size(); ++i) {
+    outputArray.set(i, outputData[i]);
+  }
+
+  return outputArray;
+}
+
+// External 파이프라인으로 편집 적용 (Key Points 사용)
+emscripten::val applyEditsExternalWithKeyPoints(
+    uintptr_t dataPtr,
+    int length,
+    int sampleRate,
+    emscripten::val keyPointsArray,
+    emscripten::val durationRegionsArray
+) {
+  init();
+
+  // Float32Array를 std::vector로 변환
+  float *audioData = reinterpret_cast<float *>(dataPtr);
+  std::vector<float> samples(audioData, audioData + length);
+
+  // AudioBuffer 생성
+  AudioBuffer buffer(sampleRate, 1);
+  buffer.setData(samples);
+
+  // AudioPreprocessor로 프레임 분할
+  AudioPreprocessor preprocessor;
+  std::vector<FrameData> frames = preprocessor.process(buffer, 0.042f, 0.021f);
+
+  // JS Array에서 Key Points 파싱
+  std::vector<PitchKeyPoint> keyPoints;
+  int keyPointsLength = keyPointsArray["length"].as<int>();
+
+  for (int i = 0; i < keyPointsLength; ++i) {
+    emscripten::val kp = keyPointsArray[i];
+    PitchKeyPoint point;
+    point.frameIndex = kp["frameIndex"].as<int>();
+    point.semitones = kp["semitones"].as<float>();
+    keyPoints.push_back(point);
+  }
+
+  // JS Array에서 Duration Regions 파싱
+  std::vector<TimeStretchRegion> regions;
+  int regionsLength = durationRegionsArray["length"].as<int>();
+
+  for (int i = 0; i < regionsLength; ++i) {
+    emscripten::val region = durationRegionsArray[i];
+    TimeStretchRegion r;
+    r.startFrame = region["startFrame"].as<int>();
+    r.endFrame = region["endFrame"].as<int>();
+    r.ratio = region["ratio"].as<float>();
+    regions.push_back(r);
+  }
+
+  // ExternalPerFrameEditor로 편집 적용 (Hybrid)
+  ExternalPerFrameEditor editor;
+  AudioBuffer result;
+
+  if (!regions.empty() && !keyPoints.empty()) {
+    // Pitch (key points) + Duration 통합 편집
+    // Duration은 아직 key points를 지원하지 않으므로 pitch만 key points 사용
+    AudioBuffer pitchEdited = editor.applyPitchEditsWithKeyPoints(frames, keyPoints, sampleRate, 1);
+    // Duration은 별도 처리 필요 (TODO: 통합)
+    result = pitchEdited;
+  } else if (!regions.empty()) {
+    // Duration만 편집
+    result = editor.applyDurationEdits(frames, regions, sampleRate, 1);
+  } else if (!keyPoints.empty()) {
+    // Pitch만 편집 (key points 사용)
+    result = editor.applyPitchEditsWithKeyPoints(frames, keyPoints, sampleRate, 1);
+  } else {
+    // 편집 없음 - 원본 그대로
+    result = AudioBuffer(sampleRate, 1);
+    result.setData(samples);
+  }
+
+  // Float32Array로 변환하여 반환
+  const std::vector<float> &outputData = result.getData();
+  emscripten::val outputArray = emscripten::val::global("Float32Array").new_(outputData.size());
+
+  for (size_t i = 0; i < outputData.size(); ++i) {
+    outputArray.set(i, outputData[i]);
+  }
+
+  return outputArray;
+}
+
+// External 파이프라인으로 편집 적용 (Hybrid: SoundTouch + 자체 알고리즘)
+emscripten::val applyEditsExternal(
+    uintptr_t dataPtr,
+    int length,
+    int sampleRate,
+    emscripten::val pitchEditsArray,
+    emscripten::val durationRegionsArray
+) {
+  init();
+
+  // Float32Array를 std::vector로 변환
+  float *audioData = reinterpret_cast<float *>(dataPtr);
+  std::vector<float> samples(audioData, audioData + length);
+
+  // AudioBuffer 생성
+  AudioBuffer buffer(sampleRate, 1);
+  buffer.setData(samples);
+
+  // AudioPreprocessor로 프레임 분할
+  AudioPreprocessor preprocessor;
+  std::vector<FrameData> frames = preprocessor.process(buffer, 0.042f, 0.021f);
+
+  // JS Array에서 Pitch Edits 파싱
+  std::vector<float> pitchShiftSemitones(frames.size(), 0.0f);
+  int pitchEditsLength = pitchEditsArray["length"].as<int>();
+
+  for (int i = 0; i < pitchEditsLength; ++i) {
+    emscripten::val edit = pitchEditsArray[i];
+    int frameIndex = edit["frameIndex"].as<int>();
+    float semitones = edit["semitones"].as<float>();
+
+    if (frameIndex >= 0 && frameIndex < static_cast<int>(pitchShiftSemitones.size())) {
+      pitchShiftSemitones[frameIndex] = semitones;
+    }
+  }
+
+  // JS Array에서 Duration Regions 파싱
+  std::vector<TimeStretchRegion> regions;
+  int regionsLength = durationRegionsArray["length"].as<int>();
+
+  for (int i = 0; i < regionsLength; ++i) {
+    emscripten::val region = durationRegionsArray[i];
+    TimeStretchRegion r;
+    r.startFrame = region["startFrame"].as<int>();
+    r.endFrame = region["endFrame"].as<int>();
+    r.ratio = region["ratio"].as<float>();
+    regions.push_back(r);
+  }
+
+  // ExternalPerFrameEditor로 편집 적용 (Hybrid)
+  ExternalPerFrameEditor editor;
+  AudioBuffer result;
+
+  if (!regions.empty() && pitchEditsLength > 0) {
+    // Pitch + Duration 통합 편집
+    result = editor.applyAllEdits(frames, pitchShiftSemitones, regions, sampleRate, 1);
+  } else if (!regions.empty()) {
+    // Duration만 편집
+    result = editor.applyDurationEdits(frames, regions, sampleRate, 1);
+  } else if (pitchEditsLength > 0) {
+    // Pitch만 편집
+    result = editor.applyPitchEdits(frames, pitchShiftSemitones, sampleRate, 1);
+  } else {
+    // 편집 없음 - 원본 그대로
+    result = AudioBuffer(sampleRate, 1);
+    result.setData(samples);
+  }
+
+  // Float32Array로 변환하여 반환
+  const std::vector<float> &outputData = result.getData();
+  emscripten::val outputArray = emscripten::val::global("Float32Array").new_(outputData.size());
+
+  for (size_t i = 0; i < outputData.size(); ++i) {
+    outputArray.set(i, outputData[i]);
+  }
+
+  return outputArray;
+}
+
 // Emscripten 바인딩
+/**
+ * 품질 분석 함수
+ * 원본과 처리된 오디오를 비교하여 품질 메트릭을 반환합니다.
+ */
+emscripten::val analyzeQuality(
+    uintptr_t originalPtr, int originalLength,
+    uintptr_t processedPtr, int processedLength,
+    int sampleRate
+) {
+  init();
+
+  // 포인터를 float 배열로 변환
+  float* originalData = reinterpret_cast<float*>(originalPtr);
+  float* processedData = reinterpret_cast<float*>(processedPtr);
+
+  // std::vector로 변환
+  std::vector<float> originalSamples(originalData, originalData + originalLength);
+  std::vector<float> processedSamples(processedData, processedData + processedLength);
+
+  // QualityAnalyzer로 분석
+  QualityAnalyzer analyzer;
+  QualityMetrics metrics = analyzer.analyze(originalSamples, processedSamples, sampleRate);
+
+  // JavaScript 객체로 변환
+  emscripten::val result = emscripten::val::object();
+  result.set("snr", metrics.snr);
+  result.set("rmsError", metrics.rmsError);
+  result.set("peakError", metrics.peakError);
+  result.set("thd", metrics.thd);
+  result.set("spectralDistortion", metrics.spectralDistortion);
+  result.set("correlation", metrics.correlation);
+  result.set("processingTime", metrics.processingTime);
+
+  return result;
+}
+
 EMSCRIPTEN_BINDINGS (audio_module) {
   // 기본 함수
   function("init", &init);
@@ -414,6 +814,16 @@ EMSCRIPTEN_BINDINGS (audio_module) {
   function("analyzePitch", &analyzePitch);
   function("analyzeDuration", &analyzeDuration);
   function("analyzePower", &analyzePower);
+  function("analyzeQuality", &analyzeQuality);
+
+  // 인터랙티브 편집용 함수
+  function("getFrameDataArray", &getFrameDataArray);
+  function("applyEditsHighQuality", &applyEditsHighQuality);
+  function("applyEditsExternal", &applyEditsExternal);
+
+  // 인터랙티브 편집용 함수 (Key Points 사용)
+  function("applyEditsHighQualityWithKeyPoints", &applyEditsHighQualityWithKeyPoints);
+  function("applyEditsExternalWithKeyPoints", &applyEditsExternalWithKeyPoints);
 
   // 효과 함수
   function("applyPitchShift", &applyPitchShift);
