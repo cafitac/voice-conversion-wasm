@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "echo 'Using pre-built WASM files'",
-  "outputDirectory": "web",
+  "buildCommand": "echo 'Built by GitHub Actions'",
+  "outputDirectory": "dist",
   "installCommand": "echo 'No install needed'"
 }

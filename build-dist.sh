@@ -1,25 +1,17 @@
 #!/bin/bash
 
-EMSDK_DIR="./emsdk"
-
-# Emscripten이 설치되어 있는지 확인
-if [ ! -d "$EMSDK_DIR" ]; then
-    echo "Emscripten이 설치되어 있지 않습니다."
-    echo "setup_emscripten.sh를 먼저 실행해주세요."
-    echo ""
-    echo "  ./setup_emscripten.sh"
-    echo ""
-    exit 1
-fi
-
-# Emscripten 환경 활성화
-echo "Emscripten 환경을 활성화합니다..."
-source ./emsdk/emsdk_env.sh
-
-# 모든 C++ 소스 파일 수집
-echo "빌드를 시작합니다..."
+echo "========================================"
+echo "Building for distribution (dist/)"
+echo "========================================"
 echo ""
 
+# Emscripten 환경 활성화 (로컬 빌드용, CI는 자동)
+if [ -d "./emsdk" ]; then
+    echo "Activating local Emscripten environment..."
+    source ./emsdk/emsdk_env.sh
+fi
+
+# 모든 C++ 소스 파일 수집
 CPP_FILES=(
     "src/main.cpp"
     "src/audio/AudioBuffer.cpp"
@@ -79,9 +71,14 @@ CPP_FILES=(
     "src/external/rubberband/single/RubberBandSingle.cpp"
 )
 
-# 컴파일
+# dist 디렉토리 생성
+echo "Creating dist/ directory..."
+mkdir -p dist
+
+# WASM 빌드 (dist/로 출력)
+echo "Building WASM..."
 em++ "${CPP_FILES[@]}" \
-  -o web/main.js \
+  -o dist/main.js \
   -s WASM=1 \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s EXPORTED_FUNCTIONS='["_malloc", "_free"]' \
@@ -97,19 +94,48 @@ em++ "${CPP_FILES[@]}" \
   -I./src/external/kissfft \
   -I./src/external/rubberband
 
-if [ $? -eq 0 ]; then
+if [ $? -ne 0 ]; then
     echo ""
-    echo "✓ 빌드 완료!"
-    echo ""
-    echo "생성된 파일:"
-    echo "  - web/main.js"
-    echo "  - web/main.wasm"
-    echo ""
-    echo "웹 서버 실행:"
-    echo "  ./runserver.sh"
-    echo ""
-else
-    echo ""
-    echo "✗ 빌드 실패!"
+    echo "✗ WASM build failed!"
     exit 1
 fi
+
+echo ""
+echo "✓ WASM build completed!"
+echo ""
+
+# web/ 정적 파일 복사
+echo "Copying static files from web/..."
+cp web/index.html dist/
+cp web/editor.html dist/
+cp -r web/css dist/
+cp -r web/js dist/
+
+echo "✓ Static files copied!"
+echo ""
+
+# benchmark_result 복사 (심볼릭 링크 대신)
+if [ -d "benchmark_result" ]; then
+    echo "Copying benchmark results..."
+    cp -r benchmark_result dist/benchmark
+    echo "✓ Benchmark results copied!"
+else
+    echo "⚠ benchmark_result directory not found, skipping..."
+fi
+
+echo ""
+echo "========================================"
+echo "✓ Distribution build completed!"
+echo "========================================"
+echo ""
+echo "Generated files in dist/:"
+echo "  - dist/main.js"
+echo "  - dist/main.wasm"
+echo "  - dist/index.html"
+echo "  - dist/editor.html"
+echo "  - dist/css/"
+echo "  - dist/js/"
+echo "  - dist/benchmark/ (if available)"
+echo ""
+echo "Ready for deployment!"
+echo ""
