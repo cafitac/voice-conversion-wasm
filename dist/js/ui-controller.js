@@ -32,6 +32,10 @@ export class UIController {
 
         // 벤치마크 리포트 데이터
         this.benchmarkReport = null;
+
+        // 재생 상태 추적
+        this.isPlayingOriginal = false;
+        this.isPlayingProcessed = false;
     }
 
     async init() {
@@ -77,6 +81,7 @@ export class UIController {
         document.getElementById('uploadFile').addEventListener('click', () => this.uploadFile());
         document.getElementById('fileInput').addEventListener('change', (e) => this.handleFileUpload(e));
         document.getElementById('playOriginal').addEventListener('click', () => this.playOriginal());
+        document.getElementById('stopOriginal').addEventListener('click', () => this.stopOriginal());
         document.getElementById('downloadOriginal').addEventListener('click', () => this.downloadOriginal());
 
         // 탭 전환 (레거시 - 조건부)
@@ -136,6 +141,7 @@ export class UIController {
 
         // 재생 및 다운로드
         document.getElementById('playProcessed').addEventListener('click', () => this.playProcessed());
+        document.getElementById('stopProcessed').addEventListener('click', () => this.stopProcessed());
         document.getElementById('downloadProcessed').addEventListener('click', () => this.downloadProcessed());
         document.getElementById('reset').addEventListener('click', () => this.reset());
 
@@ -145,6 +151,7 @@ export class UIController {
             document.getElementById('pitchValue').textContent = e.target.value;
             this.updateSliderBackground(e.target);
             this.updateResetButtons();
+            this.updateApplyButton();
         });
         this.updateSliderBackground(pitchSlider);
 
@@ -153,6 +160,7 @@ export class UIController {
             document.getElementById('timeValue').textContent = e.target.value;
             this.updateSliderBackground(e.target);
             this.updateResetButtons();
+            this.updateApplyButton();
         });
         this.updateSliderBackground(timeSlider);
 
@@ -183,13 +191,42 @@ export class UIController {
         this.updateSliderBackground(filterParam2);
 
         // 필터 타입 변경 감지
-        document.getElementById('filterType').addEventListener('change', () => {
+        document.getElementById('filterType').addEventListener('change', (e) => {
             this.updateResetButtons();
+            this.updateFilterTooltip(e.target.value);
+            this.updateApplyButton();
+        });
+
+        // 역재생 체크박스 변경 감지
+        document.getElementById('reversePlayback').addEventListener('change', async () => {
+            this.updateApplyButton();
+            // 역재생만 체크되어 있고 다른 효과가 없으면 자동으로 적용
+            const pitchValue = parseFloat(document.getElementById('pitchShift').value);
+            const timeValue = parseFloat(document.getElementById('timeStretch').value);
+            const filterType = document.getElementById('filterType').value;
+            const reversePlayback = document.getElementById('reversePlayback').checked;
+
+            const hasOtherEffects = Math.abs(pitchValue) > 0.01 ||
+                Math.abs(timeValue - 1.0) > 0.01 ||
+                filterType !== 'none';
+
+            // 역재생만 체크되어 있고 다른 효과가 없으면 자동 적용
+            if (reversePlayback && !hasOtherEffects && this.originalAudio) {
+                await this.applyAllEffects();
+            }
+        });
+
+        // 필터 정보 아이콘 호버 이벤트
+        const filterInfoIcon = document.getElementById('filterInfoIcon');
+        filterInfoIcon.addEventListener('mouseenter', () => {
+            const filterType = document.getElementById('filterType').value;
+            this.updateFilterTooltip(filterType);
         });
 
         // 초기 상태 설정
         this.updateResetButtons();
         this.updateEffectsSectionState();
+        this.updateFilterTooltip('none');
     }
 
     /**
@@ -206,11 +243,47 @@ export class UIController {
             effectsContent.style.display = 'block';
             // 초기화 버튼 상태 업데이트 (오디오 상태와 값에 따라)
             this.updateResetButtons();
+            // 효과 적용 버튼 상태 업데이트
+            this.updateApplyButton();
         } else {
             // 오디오가 없으면: 경고 문구만 표시하고, 효과 컨텐츠 숨김
             effectsNotice.style.display = 'block';
             effectsContent.style.display = 'none';
+            // 효과 적용 버튼 비활성화
+            document.getElementById('applyAllEffects').disabled = true;
         }
+    }
+
+    /**
+     * 효과 적용 버튼 활성화/비활성화
+     * 효과를 수정한 내용이 있을 때만 활성화
+     */
+    updateApplyButton() {
+        const hasAudio = !!this.originalAudio;
+        if (!hasAudio) {
+            document.getElementById('applyAllEffects').disabled = true;
+            return;
+        }
+
+        // Pitch Shift 확인 (0이 아니면 변경됨)
+        const pitchValue = parseFloat(document.getElementById('pitchShift').value);
+        const hasPitchChange = Math.abs(pitchValue) > 0.01;
+
+        // Time Stretch 확인 (1.0이 아니면 변경됨)
+        const timeValue = parseFloat(document.getElementById('timeStretch').value);
+        const hasTimeChange = Math.abs(timeValue - 1.0) > 0.01;
+
+        // Filter 확인 (none이 아니면 변경됨)
+        const filterType = document.getElementById('filterType').value;
+        const hasFilterChange = filterType !== 'none';
+
+        // 역재생 확인 (체크되어 있으면 변경됨)
+        const reversePlayback = document.getElementById('reversePlayback').checked;
+        const hasReverseChange = reversePlayback;
+
+        // 하나라도 변경사항이 있으면 활성화
+        const hasChanges = hasPitchChange || hasTimeChange || hasFilterChange || hasReverseChange;
+        document.getElementById('applyAllEffects').disabled = !hasChanges;
     }
 
     async startRecording() {
@@ -224,7 +297,8 @@ export class UIController {
         this.clearWaveform();
 
         // 관련 버튼 비활성화
-        document.getElementById('playOriginal').disabled = true;
+        this.isPlayingOriginal = false;
+        this.updatePlaybackButtons();
         document.getElementById('downloadOriginal').disabled = true;
 
         // 음성 효과 섹션 비활성화
@@ -288,7 +362,8 @@ export class UIController {
         recordStatusEl.classList.remove('recording');
         document.getElementById('startRecord').disabled = false;
         document.getElementById('stopRecord').disabled = true;
-        document.getElementById('playOriginal').disabled = false;
+        this.isPlayingOriginal = false;
+        this.updatePlaybackButtons();
         document.getElementById('downloadOriginal').disabled = false;
 
         // 음성 효과 섹션 활성화
@@ -379,7 +454,8 @@ export class UIController {
             this.currentAudioData = float32Data;
 
             document.getElementById('recordStatus').textContent = `파일 업로드 완료! (${file.name}, ${this.sampleRate}Hz)`;
-            document.getElementById('playOriginal').disabled = false;
+            this.isPlayingOriginal = false;
+            this.updatePlaybackButtons();
             document.getElementById('downloadOriginal').disabled = false;
 
             // 음성 효과 섹션 활성화
@@ -467,14 +543,27 @@ export class UIController {
     async playOriginal() {
         try {
             if (this.originalAudio instanceof Float32Array) {
+                this.isPlayingOriginal = true;
+                this.updatePlaybackButtons();
                 await this.player.playFloat32Array(this.originalAudio, this.sampleRate);
             } else {
+                this.isPlayingOriginal = true;
+                this.updatePlaybackButtons();
                 await this.player.playWavData(this.originalAudio);
             }
         } catch (error) {
             console.error('재생 실패:', error);
             alert('재생 실패: ' + error.message);
+        } finally {
+            this.isPlayingOriginal = false;
+            this.updatePlaybackButtons();
         }
+    }
+
+    stopOriginal() {
+        this.player.stop();
+        this.isPlayingOriginal = false;
+        this.updatePlaybackButtons();
     }
 
     downloadOriginal() {
@@ -554,6 +643,17 @@ export class UIController {
             return;
         }
 
+        // 재생 중인 음성 정지
+        this.player.stop();
+        if (this.isPlayingOriginal) {
+            this.isPlayingOriginal = false;
+            this.updatePlaybackButtons();
+        }
+        if (this.isPlayingProcessed) {
+            this.isPlayingProcessed = false;
+            this.updatePlaybackButtons();
+        }
+
         try {
             console.log('applyAllEffects: 모든 효과 적용 시작');
 
@@ -583,11 +683,19 @@ export class UIController {
                 audioData = await this.applyFilterInternal(audioData, parseInt(filterType));
             }
 
+            // 4. 역재생 적용 (체크되어 있으면)
+            const reversePlayback = document.getElementById('reversePlayback').checked;
+            if (reversePlayback) {
+                console.log(`✓ 역재생 적용`);
+                audioData = await this.applyReverseInternal(audioData);
+            }
+
             // 최종 결과 저장
             this.processedAudio = audioData;
             this.currentAudioData = audioData;
 
-            document.getElementById('playProcessed').disabled = false;
+            this.isPlayingProcessed = false;
+            this.updatePlaybackButtons();
             document.getElementById('downloadProcessed').disabled = false;
 
             this.drawWaveform(this.processedAudio);
@@ -720,6 +828,23 @@ export class UIController {
     }
 
     /**
+     * 역재생 내부 함수 (헬퍼)
+     */
+    async applyReverseInternal(audioData) {
+        const float32Data = audioData instanceof Float32Array
+            ? audioData
+            : this.wavToFloat32(audioData);
+
+        const dataPtr = this.module._malloc(float32Data.length * 4);
+        this.module.HEAPF32.set(float32Data, dataPtr / 4);
+
+        const result = this.module.applyReverse(dataPtr, float32Data.length, this.sampleRate);
+        this.module._free(dataPtr);
+
+        return new Float32Array(result);
+    }
+
+    /**
      * 초기화 버튼 활성화 상태 업데이트
      */
     updateResetButtons() {
@@ -747,6 +872,7 @@ export class UIController {
         document.getElementById('pitchValue').textContent = '0';
         this.updateSliderBackground(pitchSlider);
         this.updateResetButtons();
+        this.updateApplyButton();
     }
 
     /**
@@ -758,6 +884,7 @@ export class UIController {
         document.getElementById('timeValue').textContent = '1.0';
         this.updateSliderBackground(timeSlider);
         this.updateResetButtons();
+        this.updateApplyButton();
     }
 
     /**
@@ -777,6 +904,53 @@ export class UIController {
         this.updateSliderBackground(param2Slider);
 
         this.updateResetButtons();
+        this.updateFilterTooltip('none');
+        this.updateApplyButton();
+    }
+
+    /**
+     * 필터 툴팁 업데이트
+     */
+    updateFilterTooltip(filterType) {
+        const tooltipTitle = document.getElementById('tooltipTitle');
+        const tooltipDescription = document.getElementById('tooltipDescription');
+        const filterInfoIcon = document.getElementById('filterInfoIcon');
+
+        const filterDescriptions = {
+            'none': {
+                title: '없음',
+                description: '필터를 적용하지 않습니다. 원본 오디오가 그대로 유지됩니다.'
+            },
+            '0': {
+                title: 'Low Pass (저역 통과 필터)',
+                description: '고주파를 차단하고 저주파만 통과시킵니다. 고음을 제거하여 부드럽고 따뜻한 톤을 만듭니다.\n\nParameter 1: 컷오프 주파수 (500Hz ~ 5500Hz)'
+            },
+            '1': {
+                title: 'High Pass (고역 통과 필터)',
+                description: '저주파를 차단하고 고주파만 통과시킵니다. 저음을 제거하여 선명하고 밝은 톤을 만듭니다.\n\nParameter 1: 컷오프 주파수 (100Hz ~ 3100Hz)'
+            },
+            '2': {
+                title: 'Band Pass (대역 통과 필터)',
+                description: '특정 주파수 대역만 통과시킵니다. 원하는 주파수 범위를 강조하거나 전화기 음성 같은 효과를 만들 수 있습니다.\n\nParameter 1: 저역 컷오프 (200Hz ~ 2200Hz)\nParameter 2: 고역 컷오프 (1000Hz ~ 4000Hz)'
+            },
+            '3': {
+                title: 'Robot (로봇 음성 효과)',
+                description: '사인파 모듈레이션을 사용하여 로봇이나 기계 같은 음성 효과를 만듭니다. 30Hz 주파수로 진폭을 변조합니다.\n\n파라미터 없음'
+            },
+            '4': {
+                title: 'Echo (에코 효과)',
+                description: '딜레이와 피드백을 사용하여 반복되는 에코 효과를 만듭니다. 공간감과 깊이를 추가합니다.\n\nParameter 1: 딜레이 시간 (0.1초 ~ 0.6초)\nParameter 2: 피드백 강도 (0.1 ~ 0.8)'
+            },
+            '5': {
+                title: 'Reverb (리버브 효과)',
+                description: '여러 딜레이 라인을 조합하여 홀이나 공간에서 나는 것 같은 자연스러운 반향 효과를 만듭니다.\n\nParameter 1: Room Size (방 크기, 0.0 ~ 1.0)\nParameter 2: Damping (감쇠, 0.0 ~ 1.0)'
+            }
+        };
+
+        const info = filterDescriptions[filterType] || filterDescriptions['none'];
+        tooltipTitle.textContent = info.title;
+        tooltipDescription.textContent = info.description;
+        filterInfoIcon.setAttribute('data-filter', filterType);
     }
 
     async playProcessed() {
@@ -791,6 +965,9 @@ export class UIController {
             }
             console.log('Playing processed audio, size:', this.processedAudio.length);
 
+            this.isPlayingProcessed = true;
+            this.updatePlaybackButtons();
+
             if (this.processedAudio instanceof Float32Array) {
                 await this.player.playFloat32Array(this.processedAudio, this.sampleRate);
             } else {
@@ -800,7 +977,32 @@ export class UIController {
         } catch (error) {
             console.error('재생 실패:', error);
             alert('재생 실패: ' + error.message);
+        } finally {
+            this.isPlayingProcessed = false;
+            this.updatePlaybackButtons();
         }
+    }
+
+    stopProcessed() {
+        this.player.stop();
+        this.isPlayingProcessed = false;
+        this.updatePlaybackButtons();
+    }
+
+    /**
+     * 재생/정지 버튼 상태 업데이트
+     */
+    updatePlaybackButtons() {
+        const hasOriginal = !!this.originalAudio;
+        const hasProcessed = !!this.processedAudio;
+
+        // 원본 재생/정지 버튼
+        document.getElementById('playOriginal').disabled = !hasOriginal || this.isPlayingOriginal;
+        document.getElementById('stopOriginal').disabled = !this.isPlayingOriginal;
+
+        // 변조된 음성 재생/정지 버튼
+        document.getElementById('playProcessed').disabled = !hasProcessed || this.isPlayingProcessed;
+        document.getElementById('stopProcessed').disabled = !this.isPlayingProcessed;
     }
 
     downloadProcessed() {
@@ -1010,7 +1212,8 @@ export class UIController {
             this.processedAudio = this.float32ToWav(this.resultHighQuality);
             this.currentAudioData = this.processedAudio;
 
-            document.getElementById('playProcessed').disabled = false;
+            this.isPlayingProcessed = false;
+            this.updatePlaybackButtons();
             document.getElementById('downloadProcessed').disabled = false;
 
             this.drawWaveform(this.processedAudio);
@@ -1083,7 +1286,8 @@ export class UIController {
             this.processedAudio = this.float32ToWav(this.resultExternal);
             this.currentAudioData = this.processedAudio;
 
-            document.getElementById('playProcessed').disabled = false;
+            this.isPlayingProcessed = false;
+            this.updatePlaybackButtons();
             document.getElementById('downloadProcessed').disabled = false;
 
             this.drawWaveform(this.processedAudio);
@@ -1392,7 +1596,8 @@ export class UIController {
                     document.getElementById('recordStatus').textContent = `복원됨 (${audioSeconds.toFixed(1)}초)`;
 
                     // 원본 오디오 버튼 활성화
-                    document.getElementById('playOriginal').disabled = false;
+                    this.isPlayingOriginal = false;
+                    this.updatePlaybackButtons();
                     document.getElementById('downloadOriginal').disabled = false;
                     document.getElementById('analyze-hq').disabled = false;
                     document.getElementById('analyze-ext').disabled = false;
