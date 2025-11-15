@@ -197,6 +197,25 @@ export class UIController {
             this.updateApplyButton();
         });
 
+        // 역재생 체크박스 변경 감지
+        document.getElementById('reversePlayback').addEventListener('change', async () => {
+            this.updateApplyButton();
+            // 역재생만 체크되어 있고 다른 효과가 없으면 자동으로 적용
+            const pitchValue = parseFloat(document.getElementById('pitchShift').value);
+            const timeValue = parseFloat(document.getElementById('timeStretch').value);
+            const filterType = document.getElementById('filterType').value;
+            const reversePlayback = document.getElementById('reversePlayback').checked;
+
+            const hasOtherEffects = Math.abs(pitchValue) > 0.01 ||
+                Math.abs(timeValue - 1.0) > 0.01 ||
+                filterType !== 'none';
+
+            // 역재생만 체크되어 있고 다른 효과가 없으면 자동 적용
+            if (reversePlayback && !hasOtherEffects && this.originalAudio) {
+                await this.applyAllEffects();
+            }
+        });
+
         // 필터 정보 아이콘 호버 이벤트
         const filterInfoIcon = document.getElementById('filterInfoIcon');
         filterInfoIcon.addEventListener('mouseenter', () => {
@@ -258,8 +277,12 @@ export class UIController {
         const filterType = document.getElementById('filterType').value;
         const hasFilterChange = filterType !== 'none';
 
+        // 역재생 확인 (체크되어 있으면 변경됨)
+        const reversePlayback = document.getElementById('reversePlayback').checked;
+        const hasReverseChange = reversePlayback;
+
         // 하나라도 변경사항이 있으면 활성화
-        const hasChanges = hasPitchChange || hasTimeChange || hasFilterChange;
+        const hasChanges = hasPitchChange || hasTimeChange || hasFilterChange || hasReverseChange;
         document.getElementById('applyAllEffects').disabled = !hasChanges;
     }
 
@@ -660,6 +683,13 @@ export class UIController {
                 audioData = await this.applyFilterInternal(audioData, parseInt(filterType));
             }
 
+            // 4. 역재생 적용 (체크되어 있으면)
+            const reversePlayback = document.getElementById('reversePlayback').checked;
+            if (reversePlayback) {
+                console.log(`✓ 역재생 적용`);
+                audioData = await this.applyReverseInternal(audioData);
+            }
+
             // 최종 결과 저장
             this.processedAudio = audioData;
             this.currentAudioData = audioData;
@@ -792,6 +822,23 @@ export class UIController {
         this.module.HEAPF32.set(float32Data, dataPtr / 4);
 
         const result = this.module.applyVoiceFilter(dataPtr, float32Data.length, this.sampleRate, filterType, param1, param2);
+        this.module._free(dataPtr);
+
+        return new Float32Array(result);
+    }
+
+    /**
+     * 역재생 내부 함수 (헬퍼)
+     */
+    async applyReverseInternal(audioData) {
+        const float32Data = audioData instanceof Float32Array
+            ? audioData
+            : this.wavToFloat32(audioData);
+
+        const dataPtr = this.module._malloc(float32Data.length * 4);
+        this.module.HEAPF32.set(float32Data, dataPtr / 4);
+
+        const result = this.module.applyReverse(dataPtr, float32Data.length, this.sampleRate);
         this.module._free(dataPtr);
 
         return new Float32Array(result);
