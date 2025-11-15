@@ -269,7 +269,28 @@ h3 {
     content: '●';
     color: var(--accent-start);
     font-size: 20px;
-    animation: pulse 2s ease-in-out infinite;
+    /* 기본 상태에서는 애니메이션 없음 */
+}
+
+/* 녹음 중 상태 */
+.status.recording {
+    border-left-color: #ef4444;
+}
+
+.status.recording::before {
+    color: #ef4444;
+    animation: recordingPulse 1s ease-in-out infinite;
+}
+
+@keyframes recordingPulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+    }
 }
 
 @keyframes pulse {

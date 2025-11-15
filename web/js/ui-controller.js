@@ -211,7 +211,9 @@ export class UIController {
 
         try {
             await this.recorder.startRecording();
-            document.getElementById('recordStatus').textContent = '녹음 중...';
+            const recordStatusEl = document.getElementById('recordStatus');
+            recordStatusEl.textContent = '녹음 중...';
+            recordStatusEl.classList.add('recording');
         } catch (error) {
             console.error('녹음 시작 실패:', error);
 
@@ -220,9 +222,11 @@ export class UIController {
             document.getElementById('stopRecord').disabled = true;
 
             // 에러 메시지 표시
+            const recordStatusEl = document.getElementById('recordStatus');
             const errorMsg = '녹음 시작 실패: ' + error.message;
-            document.getElementById('recordStatus').textContent = errorMsg;
-            document.getElementById('recordStatus').style.color = '#f44336';
+            recordStatusEl.textContent = errorMsg;
+            recordStatusEl.style.color = '#f44336';
+            recordStatusEl.classList.remove('recording');
 
             // Alert도 표시
             alert('🎤 마이크 접근 권한이 필요합니다.\n\n' +
@@ -242,7 +246,9 @@ export class UIController {
         this.originalAudio = this.recorder.stopRecording();
         this.currentAudioData = this.originalAudio;
 
-        document.getElementById('recordStatus').textContent = '녹음 완료!';
+        const recordStatusEl = document.getElementById('recordStatus');
+        recordStatusEl.textContent = '녹음 완료!';
+        recordStatusEl.classList.remove('recording');
         document.getElementById('startRecord').disabled = false;
         document.getElementById('stopRecord').disabled = true;
         document.getElementById('playOriginal').disabled = false;
