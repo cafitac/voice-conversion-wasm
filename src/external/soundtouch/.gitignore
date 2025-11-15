@@ -14,7 +14,10 @@ lib
 *.la*
 *.a
 *.pc
-*config*
+config.log
+config.status
+!soundtouch_config.h
+!soundtouch_config.h.in
 Makefile
 Makefile.in
 .libs
