@@ -410,6 +410,122 @@ select {
     color: var(--text-primary);
     cursor: pointer;
     font-family: 'Inter', sans-serif;
+}
+
+/* 필터 선택 래퍼 */
+.filter-select-wrapper {
+    position: relative;
+    width: 100%;
+    margin-bottom: 16px;
+}
+
+/* 필터 select 박스만 커스터마이징 */
+.filter-select-wrapper select {
+    padding: 14px 35px 14px 16px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: none;
+}
+
+.filter-select-wrapper select::-ms-expand {
+    display: none;
+}
+
+/* 필터 select 드롭다운 화살표 */
+.filter-select-wrapper::after {
+    content: '▼';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: var(--text-secondary);
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* 필터 정보 아이콘 */
+.filter-info-icon {
+    position: absolute;
+    right: 35px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 10;
+    pointer-events: auto;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.filter-info-icon:hover {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.15);
+}
+
+/* 필터 툴팁 */
+.filter-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(5px);
+    transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
+    z-index: 1000;
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+.filter-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 20px;
+    width: 12px;
+    height: 12px;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    transform: rotate(45deg);
+}
+
+.filter-info-icon:hover ~ .filter-tooltip,
+.filter-tooltip:hover {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.tooltip-content strong {
+    display: block;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.tooltip-content p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
+    white-space: pre-line;
+}
+
+select {
     font-weight: 500;
     transition: all 0.2s;
 }
