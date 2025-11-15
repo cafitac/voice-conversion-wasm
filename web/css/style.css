@@ -302,6 +302,23 @@ h3 {
     }
 }
 
+/* 음성 효과 섹션 안내 문구 */
+.effects-notice {
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    text-align: center;
+}
+
+.effects-notice p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 400;
+    margin: 0;
+}
+
 /* Effect Groups */
 .effect-group {
     margin-bottom: 28px;

@@ -120,59 +120,73 @@
         </section>
 
         <!-- 음성 효과 섹션 -->
-        <section class="card">
+        <section class="card" id="effectsSection">
             <h2>3. 음성 효과</h2>
 
-            <div class="effect-group">
-                <h3>Pitch 조절</h3>
-                <div style="margin-bottom: 10px;">
-                    <label for="pitchQuality">알고리즘 품질:</label>
-                    <select id="pitchQuality">
-                        <option value="external" selected>External (SoundTouch) - 권장</option>
-                        <option value="high">High Quality (Phase Vocoder) - 최고 품질</option>
-                        <option value="fast">Fast (Simple Resampling) - 빠름</option>
-                    </select>
-                    <span id="currentQuality" style="margin-left: 10px; font-size: 12px; color: #666;"></span>
-                </div>
-                <label for="pitchShift">Pitch Shift (반음): <span id="pitchValue">0</span></label>
-                <input type="range" id="pitchShift" min="-12" max="12" value="0" step="0.5">
-                <button id="applyPitchShift" class="btn btn-primary" disabled>적용</button>
+            <!-- 안내 문구 (오디오가 없을 때 표시) -->
+            <div id="effectsNotice" class="effects-notice" style="display: none;">
+                <p>⚠️ 먼저 음성 파일을 녹음하거나 업로드해주세요.</p>
             </div>
 
-            <div class="effect-group">
-                <h3>Time Stretch</h3>
-                <div style="margin-bottom: 10px;">
-                    <label for="timeStretchQuality">알고리즘 품질:</label>
-                    <select id="timeStretchQuality">
-                        <option value="rubberband">RubberBand - 최고 품질 (느림, GPL)</option>
-                        <option value="phase-vocoder">Phase Vocoder - 매우 높은 품질</option>
-                        <option value="external" selected>External (SoundTouch) - 권장</option>
-                        <option value="high">High Quality (WSOLA) - 고품질</option>
-                        <option value="fast">Fast (Frame Manipulation) - 빠름</option>
-                    </select>
-                    <span id="currentTimeStretchQuality"
-                        style="margin-left: 10px; font-size: 12px; color: #666;"></span>
+            <!-- 음성 효과 컨텐츠 (오디오가 있을 때만 표시) -->
+            <div id="effectsContent">
+                <div class="effect-group">
+                    <h3>Pitch 조절</h3>
+                    <div style="margin-bottom: 10px;">
+                        <label for="pitchQuality">알고리즘 품질:</label>
+                        <select id="pitchQuality">
+                            <option value="external" selected>External (SoundTouch) - 권장</option>
+                            <option value="high">High Quality (Phase Vocoder) - 최고 품질</option>
+                            <option value="fast">Fast (Simple Resampling) - 빠름</option>
+                        </select>
+                        <span id="currentQuality" style="margin-left: 10px; font-size: 12px; color: #666;"></span>
+                    </div>
+                    <label for="pitchShift">Pitch Shift (반음): <span id="pitchValue">0</span></label>
+                    <input type="range" id="pitchShift" min="-12" max="12" value="0" step="0.5">
+                    <button id="resetPitch" class="btn btn-secondary" style="margin-top: 8px;">초기화</button>
                 </div>
-                <label for="timeStretch">Speed (배속): <span id="timeValue">1.0</span></label>
-                <input type="range" id="timeStretch" min="0.5" max="2.0" value="1.0" step="0.1">
-                <button id="applyTimeStretch" class="btn btn-primary" disabled>적용</button>
-            </div>
 
-            <div class="effect-group">
-                <h3>음성 필터</h3>
-                <select id="filterType">
-                    <option value="0">Low Pass</option>
-                    <option value="1">High Pass</option>
-                    <option value="2">Band Pass</option>
-                    <option value="3">Robot</option>
-                    <option value="4">Echo</option>
-                    <option value="5">Reverb</option>
-                </select>
-                <label for="filterParam1">Parameter 1: <span id="param1Value">0.5</span></label>
-                <input type="range" id="filterParam1" min="0" max="1" value="0.5" step="0.05">
-                <label for="filterParam2">Parameter 2: <span id="param2Value">0.5</span></label>
-                <input type="range" id="filterParam2" min="0" max="1" value="0.5" step="0.05">
-                <button id="applyFilter" class="btn btn-primary" disabled>필터 적용</button>
+                <div class="effect-group">
+                    <h3>Time Stretch</h3>
+                    <div style="margin-bottom: 10px;">
+                        <label for="timeStretchQuality">알고리즘 품질:</label>
+                        <select id="timeStretchQuality">
+                            <option value="rubberband">RubberBand - 최고 품질 (느림, GPL)</option>
+                            <option value="phase-vocoder">Phase Vocoder - 매우 높은 품질</option>
+                            <option value="external" selected>External (SoundTouch) - 권장</option>
+                            <option value="high">High Quality (WSOLA) - 고품질</option>
+                            <option value="fast">Fast (Frame Manipulation) - 빠름</option>
+                        </select>
+                        <span id="currentTimeStretchQuality"
+                            style="margin-left: 10px; font-size: 12px; color: #666;"></span>
+                    </div>
+                    <label for="timeStretch">Speed (배속): <span id="timeValue">1.0</span></label>
+                    <input type="range" id="timeStretch" min="0.5" max="2.0" value="1.0" step="0.1">
+                    <button id="resetTimeStretch" class="btn btn-secondary" style="margin-top: 8px;">초기화</button>
+                </div>
+
+                <div class="effect-group">
+                    <h3>음성 필터</h3>
+                    <select id="filterType">
+                        <option value="none" selected>없음 (필터 적용 안 함)</option>
+                        <option value="0">Low Pass</option>
+                        <option value="1">High Pass</option>
+                        <option value="2">Band Pass</option>
+                        <option value="3">Robot</option>
+                        <option value="4">Echo</option>
+                        <option value="5">Reverb</option>
+                    </select>
+                    <label for="filterParam1">Parameter 1: <span id="param1Value">0.5</span></label>
+                    <input type="range" id="filterParam1" min="0" max="1" value="0.5" step="0.05">
+                    <label for="filterParam2">Parameter 2: <span id="param2Value">0.5</span></label>
+                    <input type="range" id="filterParam2" min="0" max="1" value="0.5" step="0.05">
+                    <button id="resetFilter" class="btn btn-secondary" style="margin-top: 8px;">초기화</button>
+                </div>
+
+                <div style="margin-top: 24px; text-align: center;">
+                    <button id="applyAllEffects" class="btn btn-primary" style="padding: 12px 32px; font-size: 16px;"
+                        disabled>효과 적용</button>
+                </div>
             </div>
         </section>
 

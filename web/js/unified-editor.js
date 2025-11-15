@@ -204,12 +204,12 @@ export class UnifiedEditor {
             .call(this.createPitchDrag(xScale, yScale, height, filteredData, pitchGroup));
 
         // 호버 효과
-        points.on('mouseover', function() {
+        points.on('mouseover', function () {
             d3.select(this)
                 .transition()
                 .duration(150)
                 .attr('r', 7);
-        }).on('mouseout', function() {
+        }).on('mouseout', function () {
             d3.select(this)
                 .transition()
                 .duration(150)

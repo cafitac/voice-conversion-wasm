@@ -32,6 +32,9 @@ private:
     // 간단한 필터 구현
     void applySimpleLowPass(std::vector<float>& data, float cutoff, int sampleRate);
     void applySimpleHighPass(std::vector<float>& data, float cutoff, int sampleRate);
+    
+    // RMS 계산 (볼륨 보정용)
+    float calculateRMS(const std::vector<float>& data);
 };
 
 #endif // VOICEFILTER_H

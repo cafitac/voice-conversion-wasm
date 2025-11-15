@@ -9,22 +9,51 @@ VoiceFilter::~VoiceFilter() {
 }
 
 AudioBuffer VoiceFilter::applyFilter(const AudioBuffer& input, FilterType type, float param1, float param2) {
+    // 원본 RMS 계산 (볼륨 보정용)
+    float originalRMS = calculateRMS(input.getData());
+    
+    AudioBuffer result;
     switch (type) {
         case FilterType::LOW_PASS:
-            return applyLowPass(input, param1 * 5000.0f + 500.0f);
+            result = applyLowPass(input, param1 * 5000.0f + 500.0f);
+            break;
         case FilterType::HIGH_PASS:
-            return applyHighPass(input, param1 * 3000.0f + 100.0f);
+            result = applyHighPass(input, param1 * 3000.0f + 100.0f);
+            break;
         case FilterType::BAND_PASS:
-            return applyBandPass(input, param1 * 2000.0f + 200.0f, param2 * 3000.0f + 1000.0f);
+            result = applyBandPass(input, param1 * 2000.0f + 200.0f, param2 * 3000.0f + 1000.0f);
+            break;
         case FilterType::ROBOT:
-            return applyRobot(input);
+            result = applyRobot(input);
+            break;
         case FilterType::ECHO:
-            return applyEcho(input, param1 * 0.5f + 0.1f, param2 * 0.7f + 0.1f);
+            result = applyEcho(input, param1 * 0.5f + 0.1f, param2 * 0.7f + 0.1f);
+            break;
         case FilterType::REVERB:
-            return applyReverb(input, param1, param2);
+            result = applyReverb(input, param1, param2);
+            break;
         default:
             return input;
     }
+    
+    // 필터 적용 후 RMS 계산
+    float filteredRMS = calculateRMS(result.getData());
+    
+    // 볼륨 보정: 원본 RMS에 맞춰 조정 (단, 클리핑 방지)
+    if (filteredRMS > 0.0001f && originalRMS > 0.0001f) {
+        float gain = originalRMS / filteredRMS;
+        // 과도한 증폭 방지 (최대 3배)
+        gain = std::min(gain, 3.0f);
+        
+        auto& data = result.getData();
+        for (float& sample : data) {
+            sample *= gain;
+            // 클리핑 방지
+            sample = std::max(-1.0f, std::min(1.0f, sample));
+        }
+    }
+    
+    return result;
 }
 
 AudioBuffer VoiceFilter::applyLowPass(const AudioBuffer& input, float cutoff) {
@@ -132,4 +161,14 @@ void VoiceFilter::applySimpleHighPass(std::vector<float>& data, float cutoff, in
     for (size_t i = 1; i < data.size(); ++i) {
         data[i] = alpha * (data[i - 1] + original[i] - original[i - 1]);
     }
+}
+
+float VoiceFilter::calculateRMS(const std::vector<float>& data) {
+    if (data.empty()) return 0.0f;
+    
+    float sum = 0.0f;
+    for (float sample : data) {
+        sum += sample * sample;
+    }
+    return std::sqrt(sum / data.size());
 }
