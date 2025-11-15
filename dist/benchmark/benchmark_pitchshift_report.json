@@ -1,0 +1,105 @@
+{
+  "benchmarkType": "PitchShift",
+<<<<<<< Updated upstream
+  "timestamp": 1763178989,
+=======
+  "timestamp": 1763183910,
+>>>>>>> Stashed changes
+  "results": [
+    {
+      "algorithm": "FastPitchShift (Simple Resampling)",
+      "semitones": 3.0000,
+<<<<<<< Updated upstream
+      "processingTimeMs": 0.2080,
+      "throughputSamplesPerSec": 1083076923.0769,
+      "realtimeFactor": 0.0000,
+=======
+      "processingTimeMs": 0.3260,
+      "throughputSamplesPerSec": 691042944.7853,
+      "realtimeFactor": 0.0001,
+>>>>>>> Stashed changes
+      "originalPitch": 124.4442,
+      "outputPitch": 147.4443,
+      "actualPitchSemitones": 2.9361,
+      "pitchError": -0.0639,
+      "durationRatio": 0.8409,
+      "rmsError": 0.0605
+    },
+    {
+      "algorithm": "HighQualityPitchShift (Phase Vocoder)",
+      "semitones": 3.0000,
+<<<<<<< Updated upstream
+      "processingTimeMs": 27.8670,
+      "throughputSamplesPerSec": 8084113.8264,
+      "realtimeFactor": 0.0059,
+=======
+      "processingTimeMs": 38.5780,
+      "throughputSamplesPerSec": 5839597.6982,
+      "realtimeFactor": 0.0082,
+>>>>>>> Stashed changes
+      "originalPitch": 124.4442,
+      "outputPitch": 347.3238,
+      "actualPitchSemitones": 17.7694,
+      "pitchError": 14.7694,
+      "durationRatio": 1.0000,
+      "rmsError": 0.0406
+    },
+    {
+      "algorithm": "ExternalPitchShift (SoundTouch)",
+      "semitones": 3.0000,
+<<<<<<< Updated upstream
+      "processingTimeMs": 14.2610,
+      "throughputSamplesPerSec": 15796928.6866,
+      "realtimeFactor": 0.0030,
+=======
+      "processingTimeMs": 27.8560,
+      "throughputSamplesPerSec": 8087306.1459,
+      "realtimeFactor": 0.0059,
+>>>>>>> Stashed changes
+      "originalPitch": 124.4442,
+      "outputPitch": 147.2737,
+      "actualPitchSemitones": 2.9160,
+      "pitchError": -0.0840,
+      "durationRatio": 1.0000,
+      "rmsError": 0.0584
+    },
+    {
+      "algorithm": "PSOLA Pitch Shift",
+      "semitones": 3.0000,
+<<<<<<< Updated upstream
+      "processingTimeMs": 1051.3130,
+      "throughputSamplesPerSec": 214284.4234,
+      "realtimeFactor": 0.2240,
+=======
+      "processingTimeMs": 1504.8400,
+      "throughputSamplesPerSec": 149703.6230,
+      "realtimeFactor": 0.3206,
+>>>>>>> Stashed changes
+      "originalPitch": 124.4442,
+      "outputPitch": 147.8215,
+      "actualPitchSemitones": 2.9803,
+      "pitchError": -0.0197,
+      "durationRatio": 0.8386,
+      "rmsError": 0.0620
+    },
+    {
+      "algorithm": "RubberBand Pitch Shift",
+      "semitones": 3.0000,
+<<<<<<< Updated upstream
+      "processingTimeMs": 132.6680,
+      "throughputSamplesPerSec": 1698073.3862,
+      "realtimeFactor": 0.0283,
+=======
+      "processingTimeMs": 179.0040,
+      "throughputSamplesPerSec": 1258519.3627,
+      "realtimeFactor": 0.0381,
+>>>>>>> Stashed changes
+      "originalPitch": 124.4442,
+      "outputPitch": 147.9828,
+      "actualPitchSemitones": 2.9992,
+      "pitchError": -0.0008,
+      "durationRatio": 1.0000,
+      "rmsError": 0.0556
+    }
+  ]
+}
