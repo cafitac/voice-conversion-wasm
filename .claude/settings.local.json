@@ -44,7 +44,10 @@
       "Bash(./build_edit_pipeline_test.sh:*)",
       "Bash(./test_edit_pipeline)",
       "Bash(/Users/reddit/CLionProjects/school/tests/test_edit_pipeline)",
-      "Bash(/Users/reddit/CLionProjects/school/tests/build_edit_pipeline_test.sh:*)"
+      "Bash(/Users/reddit/CLionProjects/school/tests/build_edit_pipeline_test.sh:*)",
+      "Bash(git checkout:*)",
+      "Bash(git rm:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

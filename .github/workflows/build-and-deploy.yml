@@ -1,0 +1,60 @@
+name: Build and Deploy WASM
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'dist/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '3.1.45'
+          actions-cache-folder: 'emsdk-cache'
+
+      - name: Verify Emscripten installation
+        run: |
+          emcc --version
+          em++ --version
+
+      - name: Build WASM
+        run: |
+          chmod +x build-dist.sh
+          ./build-dist.sh
+
+      - name: Check dist directory
+        run: |
+          echo "Contents of dist/:"
+          ls -la dist/
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and push dist
+        run: |
+          git add dist/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 Build: Update dist/ [skip ci]"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

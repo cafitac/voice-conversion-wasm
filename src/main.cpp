@@ -11,6 +11,7 @@
 #include "analysis/PowerAnalyzer.h"
 #include "analysis/QualityAnalyzer.h"
 #include "effects/VoiceFilter.h"
+#include "effects/AudioReverse.h"
 #include "audio/FrameReconstructor.h"
 #include "utils/WaveFile.h"
 #include "utils/PitchCurveInterpolator.h"
@@ -174,6 +175,21 @@ val applyVoiceFilter(uintptr_t dataPtr,
   VoiceFilter filter;
   FilterType type = static_cast<FilterType>(filterType);
   AudioBuffer result = filter.applyFilter(buffer, type, param1, param2);
+
+  const auto &resultData = result.getData();
+  return val(typed_memory_view(resultData.size(), resultData.data()));
+}
+
+// 역재생 적용
+val applyReverse(uintptr_t dataPtr, int length, int sampleRate) {
+  float *data = reinterpret_cast<float *>(dataPtr);
+  std::vector<float> samples(data, data + length);
+
+  AudioBuffer buffer(sampleRate, 1);
+  buffer.setData(samples);
+
+  AudioReverse reverser;
+  AudioBuffer result = reverser.applyReverse(buffer);
 
   const auto &resultData = result.getData();
   return val(typed_memory_view(resultData.size(), resultData.data()));
@@ -830,6 +846,7 @@ EMSCRIPTEN_BINDINGS (audio_module) {
 
   // 효과 함수
   function("applyVoiceFilter", &applyVoiceFilter);
+  function("applyReverse", &applyReverse);
   function("normalizeAudio", &normalizeAudio);
 
   // FilterType enum

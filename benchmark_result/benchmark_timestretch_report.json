@@ -1,12 +1,21 @@
 {
   "benchmarkType": "TimeStretch",
+<<<<<<< Updated upstream
   "timestamp": 1763178990,
+=======
+  "timestamp": 1763183913,
+>>>>>>> Stashed changes
   "results": [
     {
       "algorithm": "FastTimeStretch (Frame Repeat/Skip)",
       "ratio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 0.4660,
       "throughputSamplesPerSec": 483433476.3948,
+=======
+      "processingTimeMs": 0.6220,
+      "throughputSamplesPerSec": 362186495.1768,
+>>>>>>> Stashed changes
       "realtimeFactor": 0.0001,
       "snr": 0.0000,
       "rmsError": 0.0000
@@ -14,36 +23,60 @@
     {
       "algorithm": "HighQualityTimeStretch (WSOLA)",
       "ratio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 56.4830,
       "throughputSamplesPerSec": 3988456.7038,
       "realtimeFactor": 0.0120,
+=======
+      "processingTimeMs": 110.0460,
+      "throughputSamplesPerSec": 2047143.9216,
+      "realtimeFactor": 0.0234,
+>>>>>>> Stashed changes
       "snr": 0.0000,
       "rmsError": 0.0000
     },
     {
       "algorithm": "ExternalTimeStretch (SoundTouch)",
       "ratio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 16.3910,
       "throughputSamplesPerSec": 13744127.8751,
       "realtimeFactor": 0.0035,
+=======
+      "processingTimeMs": 31.3020,
+      "throughputSamplesPerSec": 7196984.2183,
+      "realtimeFactor": 0.0067,
+>>>>>>> Stashed changes
       "snr": 0.0000,
       "rmsError": 0.0000
     },
     {
       "algorithm": "PhaseVocoder Time Stretch",
       "ratio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 516.4440,
       "throughputSamplesPerSec": 436213.8005,
       "realtimeFactor": 0.1100,
+=======
+      "processingTimeMs": 692.0380,
+      "throughputSamplesPerSec": 325531.2570,
+      "realtimeFactor": 0.1475,
+>>>>>>> Stashed changes
       "snr": 0.0000,
       "rmsError": 0.0000
     },
     {
       "algorithm": "RubberBand Time Stretch",
       "ratio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 142.9520,
       "throughputSamplesPerSec": 1575913.5934,
       "realtimeFactor": 0.0305,
+=======
+      "processingTimeMs": 190.1700,
+      "throughputSamplesPerSec": 1184624.2835,
+      "realtimeFactor": 0.0405,
+>>>>>>> Stashed changes
       "snr": 0.0000,
       "rmsError": 0.0000
     }

@@ -1,6 +1,10 @@
 {
   "benchmarkType": "PartialSegment",
+<<<<<<< Updated upstream
   "timestamp": 1763178987,
+=======
+  "timestamp": 1763183907,
+>>>>>>> Stashed changes
   "results": [
     {
       "algorithm": "FastTimeStretch (Frame Repeat/Skip)",
@@ -9,8 +13,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 1.8467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 0.2670,
       "realtimeFactor": 0.0005,
+=======
+      "processingTimeMs": 0.5320,
+      "realtimeFactor": 0.0011,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 0.5000,
       "outputSegmentDuration": 0.3750,
       "actualRatio": 0.7500,
@@ -26,8 +35,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 1.8467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 0.1970,
       "realtimeFactor": 0.0004,
+=======
+      "processingTimeMs": 0.7060,
+      "realtimeFactor": 0.0014,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 0.5000,
       "outputSegmentDuration": 0.7500,
       "actualRatio": 1.5000,
@@ -43,8 +57,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 2.3467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 0.2140,
       "realtimeFactor": 0.0002,
+=======
+      "processingTimeMs": 0.7020,
+      "realtimeFactor": 0.0007,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 1.0000,
       "outputSegmentDuration": 0.7500,
       "actualRatio": 0.7500,
@@ -60,8 +79,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 2.3467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 0.2930,
       "realtimeFactor": 0.0003,
+=======
+      "processingTimeMs": 1.4950,
+      "realtimeFactor": 0.0015,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 1.0000,
       "outputSegmentDuration": 1.5000,
       "actualRatio": 1.5000,
@@ -77,8 +101,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 3.3467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 0.2630,
       "realtimeFactor": 0.0001,
+=======
+      "processingTimeMs": 0.5110,
+      "realtimeFactor": 0.0003,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 2.0000,
       "outputSegmentDuration": 1.5000,
       "actualRatio": 0.7500,
@@ -94,8 +123,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 3.3467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 0.4180,
       "realtimeFactor": 0.0002,
+=======
+      "processingTimeMs": 0.6190,
+      "realtimeFactor": 0.0003,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 2.0000,
       "outputSegmentDuration": 3.0000,
       "actualRatio": 1.5000,
@@ -111,8 +145,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 1.8467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 8.8060,
       "realtimeFactor": 0.0176,
+=======
+      "processingTimeMs": 15.9510,
+      "realtimeFactor": 0.0319,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 0.5000,
       "outputSegmentDuration": 0.3750,
       "actualRatio": 0.7500,
@@ -128,8 +167,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 1.8467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 6.2020,
       "realtimeFactor": 0.0124,
+=======
+      "processingTimeMs": 11.4770,
+      "realtimeFactor": 0.0230,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 0.5000,
       "outputSegmentDuration": 0.7500,
       "actualRatio": 1.5000,
@@ -145,8 +189,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 2.3467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 16.9960,
       "realtimeFactor": 0.0170,
+=======
+      "processingTimeMs": 31.0820,
+      "realtimeFactor": 0.0311,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 1.0000,
       "outputSegmentDuration": 0.7500,
       "actualRatio": 0.7500,
@@ -162,8 +211,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 2.3467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 12.2040,
       "realtimeFactor": 0.0122,
+=======
+      "processingTimeMs": 23.1780,
+      "realtimeFactor": 0.0232,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 1.0000,
       "outputSegmentDuration": 1.5000,
       "actualRatio": 1.5000,
@@ -179,8 +233,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 3.3467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 33.6500,
       "realtimeFactor": 0.0168,
+=======
+      "processingTimeMs": 63.1390,
+      "realtimeFactor": 0.0316,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 2.0000,
       "outputSegmentDuration": 1.5000,
       "actualRatio": 0.7500,
@@ -196,8 +255,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 3.3467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 24.7070,
       "realtimeFactor": 0.0124,
+=======
+      "processingTimeMs": 47.1770,
+      "realtimeFactor": 0.0236,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 2.0000,
       "outputSegmentDuration": 3.0000,
       "actualRatio": 1.5000,
@@ -213,8 +277,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 1.8467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 1.5420,
       "realtimeFactor": 0.0031,
+=======
+      "processingTimeMs": 2.5860,
+      "realtimeFactor": 0.0052,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 0.5000,
       "outputSegmentDuration": 0.3750,
       "actualRatio": 0.7500,
@@ -230,8 +299,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 1.8467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 1.6130,
       "realtimeFactor": 0.0032,
+=======
+      "processingTimeMs": 3.2830,
+      "realtimeFactor": 0.0066,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 0.5000,
       "outputSegmentDuration": 0.7500,
       "actualRatio": 1.5000,
@@ -247,8 +321,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 2.3467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 2.4080,
       "realtimeFactor": 0.0024,
+=======
+      "processingTimeMs": 4.3540,
+      "realtimeFactor": 0.0044,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 1.0000,
       "outputSegmentDuration": 0.7500,
       "actualRatio": 0.7500,
@@ -264,8 +343,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 2.3467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 3.1320,
       "realtimeFactor": 0.0031,
+=======
+      "processingTimeMs": 6.2080,
+      "realtimeFactor": 0.0062,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 1.0000,
       "outputSegmentDuration": 1.5000,
       "actualRatio": 1.5000,
@@ -281,8 +365,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 3.3467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 4.3910,
       "realtimeFactor": 0.0022,
+=======
+      "processingTimeMs": 8.5440,
+      "realtimeFactor": 0.0043,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 2.0000,
       "outputSegmentDuration": 1.5000,
       "actualRatio": 0.7500,
@@ -298,8 +387,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 3.3467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 6.6100,
       "realtimeFactor": 0.0033,
+=======
+      "processingTimeMs": 12.9820,
+      "realtimeFactor": 0.0065,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 2.0000,
       "outputSegmentDuration": 3.0000,
       "actualRatio": 1.5000,
@@ -315,8 +409,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 1.8467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 50.0130,
       "realtimeFactor": 0.1000,
+=======
+      "processingTimeMs": 66.2930,
+      "realtimeFactor": 0.1326,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 0.5000,
       "outputSegmentDuration": 0.3750,
       "actualRatio": 0.7500,
@@ -332,8 +431,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 1.8467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 50.5020,
       "realtimeFactor": 0.1010,
+=======
+      "processingTimeMs": 66.8480,
+      "realtimeFactor": 0.1337,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 0.5000,
       "outputSegmentDuration": 0.7500,
       "actualRatio": 1.5000,
@@ -349,8 +453,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 2.3467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 106.4450,
       "realtimeFactor": 0.1064,
+=======
+      "processingTimeMs": 141.0490,
+      "realtimeFactor": 0.1410,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 1.0000,
       "outputSegmentDuration": 0.7500,
       "actualRatio": 0.7500,
@@ -366,8 +475,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 2.3467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 105.9190,
       "realtimeFactor": 0.1059,
+=======
+      "processingTimeMs": 139.1160,
+      "realtimeFactor": 0.1391,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 1.0000,
       "outputSegmentDuration": 1.5000,
       "actualRatio": 1.5000,
@@ -383,8 +497,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 3.3467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 233.3640,
       "realtimeFactor": 0.1167,
+=======
+      "processingTimeMs": 289.4060,
+      "realtimeFactor": 0.1447,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 2.0000,
       "outputSegmentDuration": 1.5000,
       "actualRatio": 0.7500,
@@ -400,8 +519,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 3.3467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 217.5930,
       "realtimeFactor": 0.1088,
+=======
+      "processingTimeMs": 290.0430,
+      "realtimeFactor": 0.1450,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 2.0000,
       "outputSegmentDuration": 3.0000,
       "actualRatio": 1.5000,
@@ -417,8 +541,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 1.8467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 10.9360,
       "realtimeFactor": 0.0219,
+=======
+      "processingTimeMs": 17.6180,
+      "realtimeFactor": 0.0352,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 0.5000,
       "outputSegmentDuration": 0.3750,
       "actualRatio": 0.7500,
@@ -434,8 +563,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 1.8467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 17.1730,
       "realtimeFactor": 0.0343,
+=======
+      "processingTimeMs": 23.0010,
+      "realtimeFactor": 0.0460,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 0.5000,
       "outputSegmentDuration": 0.7500,
       "actualRatio": 1.5000,
@@ -451,8 +585,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 2.3467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 19.6460,
       "realtimeFactor": 0.0196,
+=======
+      "processingTimeMs": 26.3580,
+      "realtimeFactor": 0.0264,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 1.0000,
       "outputSegmentDuration": 0.7500,
       "actualRatio": 0.7500,
@@ -468,8 +607,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 2.3467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 32.1450,
       "realtimeFactor": 0.0321,
+=======
+      "processingTimeMs": 42.7150,
+      "realtimeFactor": 0.0427,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 1.0000,
       "outputSegmentDuration": 1.5000,
       "actualRatio": 1.5000,
@@ -485,8 +629,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 3.3467,
       "targetRatio": 0.7500,
+<<<<<<< Updated upstream
       "processingTimeMs": 38.4670,
       "realtimeFactor": 0.0192,
+=======
+      "processingTimeMs": 50.4180,
+      "realtimeFactor": 0.0252,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 2.0000,
       "outputSegmentDuration": 1.5000,
       "actualRatio": 0.7500,
@@ -502,8 +651,13 @@
       "segmentStart": 1.3467,
       "segmentEnd": 3.3467,
       "targetRatio": 1.5000,
+<<<<<<< Updated upstream
       "processingTimeMs": 62.9450,
       "realtimeFactor": 0.0315,
+=======
+      "processingTimeMs": 81.9040,
+      "realtimeFactor": 0.0410,
+>>>>>>> Stashed changes
       "originalSegmentDuration": 2.0000,
       "outputSegmentDuration": 3.0000,
       "actualRatio": 1.5000,
