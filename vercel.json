@@ -2,5 +2,6 @@
   "version": 2,
   "buildCommand": "echo 'Built by GitHub Actions'",
   "outputDirectory": "dist",
-  "installCommand": "echo 'No install needed'"
+  "installCommand": "echo 'No install needed'",
+  "ignoreCommand": "bash -c '[[ ! -f dist/main.wasm ]] && echo \"⏭️  Skipping: dist not ready yet (GitHub Actions building...)\" && exit 0 || echo \"✅ Deploying: dist is ready\" && exit 1'"
 }
