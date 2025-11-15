@@ -181,6 +181,34 @@ export class UIController {
         document.getElementById('startRecord').disabled = true;
         document.getElementById('stopRecord').disabled = false;
 
+        // 기존 오디오 데이터 및 파형 지우기
+        this.originalAudio = null;
+        this.currentAudioData = null;
+        this.clearWaveform();
+
+        // 관련 버튼 비활성화
+        document.getElementById('playOriginal').disabled = true;
+        document.getElementById('downloadOriginal').disabled = true;
+        document.getElementById('applyPitchShift').disabled = true;
+        document.getElementById('applyTimeStretch').disabled = true;
+        document.getElementById('applyFilter').disabled = true;
+
+        // Interactive editor analyze 버튼 비활성화 (조건부)
+        if (document.getElementById('analyze-hq')) {
+            document.getElementById('analyze-hq').disabled = true;
+        }
+        if (document.getElementById('analyze-ext')) {
+            document.getElementById('analyze-ext').disabled = true;
+        }
+        if (document.getElementById('compare-run')) {
+            document.getElementById('compare-run').disabled = true;
+        }
+
+        // 통합 에디터 분석 버튼 비활성화
+        if (document.getElementById('analyze-unified')) {
+            document.getElementById('analyze-unified').disabled = true;
+        }
+
         try {
             await this.recorder.startRecording();
             document.getElementById('recordStatus').textContent = '녹음 중...';
@@ -198,10 +226,10 @@ export class UIController {
 
             // Alert도 표시
             alert('🎤 마이크 접근 권한이 필요합니다.\n\n' +
-                  '브라우저 설정에서 마이크 권한을 허용해주세요.\n\n' +
-                  '1. 주소창 왼쪽의 자물쇠/정보 아이콘을 클릭\n' +
-                  '2. 마이크 권한을 "허용"으로 변경\n' +
-                  '3. 페이지를 새로고침');
+                '브라우저 설정에서 마이크 권한을 허용해주세요.\n\n' +
+                '1. 주소창 왼쪽의 자물쇠/정보 아이콘을 클릭\n' +
+                '2. 마이크 권한을 "허용"으로 변경\n' +
+                '3. 페이지를 새로고침');
 
             // 3초 후 상태 메시지 색상 복원
             setTimeout(() => {
@@ -336,6 +364,19 @@ export class UIController {
             console.error('파일 업로드 실패:', error);
             document.getElementById('recordStatus').textContent = '파일 업로드 실패: ' + error.message;
         }
+    }
+
+    clearWaveform() {
+        // Canvas를 배경색으로 지우기
+        const canvas = document.getElementById('waveformCanvas');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width = canvas.clientWidth;
+        const height = canvas.height = 100;
+
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, width, height);
     }
 
     drawWaveform(audioData) {
@@ -916,7 +957,7 @@ export class UIController {
                 keyPointsCount: keyPointsArray.length,
                 editedKeyPoints: keyPointsArray.filter(kp => Math.abs(kp.semitones) > 0.01).length,
                 durationRegionsCount: durationRegionsArray.length,
-                sampleKeyPoints: keyPointsArray.slice(0, 5).map(kp => ({frame: kp.frameIndex, shift: kp.semitones.toFixed(2)}))
+                sampleKeyPoints: keyPointsArray.slice(0, 5).map(kp => ({ frame: kp.frameIndex, shift: kp.semitones.toFixed(2) }))
             });
 
             // Pitch만 편집하고 Duration은 편집하지 않은 경우 확인
@@ -1876,7 +1917,7 @@ export class UIController {
         try {
             // Pitch 분석
             const pitchData = await this.analyzePitchData();
-            
+
             // Duration 데이터 (기본 비어있음)
             const durationData = [];
 
@@ -1953,7 +1994,7 @@ export class UIController {
 
             // 편집 데이터 가져오기
             const edits = this.unifiedEditor.getEdits();
-            
+
             // 선택된 알고리즘
             const pitchAlgo = document.getElementById("pitch-algorithm").value;
             const durationAlgo = document.getElementById("duration-algorithm").value;
@@ -1973,7 +2014,7 @@ export class UIController {
             document.getElementById("stop-sample").disabled = false;
             document.getElementById("download-sample").disabled = false;
 
-            document.getElementById("sample-status").textContent = 
+            document.getElementById("sample-status").textContent =
                 `✅ 샘플 생성 완료 (${(this.sampleAudio.length / this.sampleRate).toFixed(2)}초)`;
 
         } catch (error) {
