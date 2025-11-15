@@ -30,26 +30,36 @@ CPP_FILES=(
     "src/analysis/DurationAnalyzer.cpp"
     "src/analysis/PowerAnalyzer.cpp"
     "src/analysis/QualityAnalyzer.cpp"
-    "src/effects/PitchShifter.cpp"
     "src/effects/PhaseVocoder.cpp"
     "src/effects/PhaseVocoderPitchShifter.cpp"
-    "src/effects/FastPitchShiftStrategy.cpp"
-    "src/effects/HighQualityPitchShiftStrategy.cpp"
-    "src/effects/ExternalPitchShiftStrategy.cpp"
-    "src/effects/TimeStretcher.cpp"
-    "src/effects/FastTimeStretchStrategy.cpp"
-    "src/effects/HighQualityTimeStretchStrategy.cpp"
-    "src/effects/ExternalTimeStretchStrategy.cpp"
-    "src/effects/HighQualityPerFrameEditor.cpp"
-    "src/effects/ExternalPerFrameEditor.cpp"
     "src/effects/VoiceFilter.cpp"
-    "src/effects/FramePitchModifier.cpp"
-    "src/effects/TimeScaleModifier.cpp"
     "src/utils/WaveFile.cpp"
     "src/utils/FFTWrapper.cpp"
-    "src/synthesis/FrameReconstructor.cpp"
-    "src/visualization/CanvasRenderer.cpp"
-    "src/visualization/TrimController.cpp"
+    "src/utils/PitchCurveInterpolator.cpp"
+    "src/utils/EditPointManager.cpp"
+    "src/utils/EditPointGenerator.cpp"
+    "src/audio/FrameReconstructor.cpp"
+    # 새로운 파이프라인 아키텍처
+    "src/preprocessor/OutlierCorrector.cpp"
+    "src/preprocessor/SplineInterpolator.cpp"
+    "src/processor/pitch/PSOLAPitchProcessor.cpp"
+    "src/processor/pitch/PhaseVocoderPitchProcessor.cpp"
+    "src/processor/pitch/SoundTouchPitchProcessor.cpp"
+    "src/processor/pitch/RubberBandPitchProcessor.cpp"
+    "src/processor/duration/WSOLADurationProcessor.cpp"
+    "src/processor/duration/SoundTouchDurationProcessor.cpp"
+    "src/processor/duration/RubberBandDurationProcessor.cpp"
+    "src/pipeline/PitchFirstPipeline.cpp"
+    "src/pipeline/HybridPipeline.cpp"
+    # Algorithm 패키지 (pitch)
+    "src/algorithm/pitch/PSOLAAlgorithm.cpp"
+    "src/algorithm/pitch/PhaseVocoderAlgorithm.cpp"
+    "src/algorithm/pitch/SoundTouchAlgorithm.cpp"
+    "src/algorithm/pitch/RubberBandAlgorithm.cpp"
+    # Algorithm 패키지 (duration)
+    "src/algorithm/duration/WSOLAAlgorithm.cpp"
+    "src/algorithm/duration/SoundTouchDurationAlgorithm.cpp"
+    "src/algorithm/duration/RubberBandDurationAlgorithm.cpp"
     # SoundTouch 라이브러리 (핵심 파일만)
     "src/external/soundtouch/source/SoundTouch/SoundTouch.cpp"
     "src/external/soundtouch/source/SoundTouch/FIFOSampleBuffer.cpp"
@@ -64,6 +74,8 @@ CPP_FILES=(
     "src/external/soundtouch/source/SoundTouch/cpu_detect_x86.cpp"
     # KissFFT 라이브러리
     "src/external/kissfft/kiss_fft.c"
+    # RubberBand 라이브러리 (Single compilation unit)
+    "src/external/rubberband/single/RubberBandSingle.cpp"
 )
 
 # 컴파일
@@ -81,7 +93,8 @@ em++ "${CPP_FILES[@]}" \
   -I./src \
   -I./src/external/soundtouch/include \
   -I./src/external/soundtouch/source \
-  -I./src/external/kissfft
+  -I./src/external/kissfft \
+  -I./src/external/rubberband
 
 if [ $? -eq 0 ]; then
     echo ""

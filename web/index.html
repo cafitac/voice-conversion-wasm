@@ -9,7 +9,17 @@
 </head>
 <body>
     <div class="container">
-        <h1>음성 변조 앱</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1>음성 변조 앱</h1>
+            <a href="benchmark/comprehensive_benchmark_report.html" target="_blank"
+               style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      color: white; text-decoration: none; border-radius: 8px; font-weight: 600;
+                      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); transition: transform 0.2s;"
+               onmouseover="this.style.transform='translateY(-2px)'"
+               onmouseout="this.style.transform='translateY(0)'">
+                📊 벤치마크 리포트 보기
+            </a>
+        </div>
 
         <!-- 녹음 섹션 -->
         <section class="card">
@@ -30,78 +40,80 @@
         <section class="card">
             <h2>2. 음성 분석 및 인터랙티브 편집</h2>
 
-            <!-- 파이프라인 선택 탭 -->
-            <div class="pipeline-tabs">
-                <button id="tab-highquality" class="tab-btn active" data-tab="highquality">
-                    HighQuality (자체 구현)
-                </button>
-                <button id="tab-external" class="tab-btn" data-tab="external">
-                    External (SoundTouch Hybrid)
-                </button>
-                <button id="tab-compare" class="tab-btn" data-tab="compare">
-                    A/B 비교
-                </button>
+            <!-- 분석 버튼 -->
+            <div class="controls">
+                <button id="analyze-unified" class="btn btn-primary" disabled>음성 분석</button>
+                <button id="reset-unified" class="btn btn-warning" disabled>편집 초기화</button>
             </div>
 
-            <!-- HighQuality 파이프라인 -->
-            <div id="pipeline-highquality" class="pipeline-view active">
-                <div class="controls">
-                    <button id="analyze-hq" class="btn btn-primary" disabled>분석 (자체 알고리즘)</button>
-                    <button id="edit-fullscreen-hq" class="btn btn-secondary" disabled>전체 화면 편집</button>
-                    <button id="apply-hq" class="btn btn-success" disabled>편집 적용</button>
-                    <button id="reset-hq" class="btn btn-warning" disabled>편집 초기화</button>
-                </div>
-                <div id="chart-hq" class="interactive-chart-container"></div>
-                <div class="edit-info">
-                    <p>📌 <strong>Pitch 편집:</strong> 파란 점을 위/아래로 드래그하세요</p>
-                    <p>📌 <strong>Duration 편집:</strong> 마우스로 구간을 선택하고 ratio를 입력하세요</p>
-                    <p>💡 <strong>Tip:</strong> 더 편한 편집을 원하시면 "전체 화면 편집" 버튼을 클릭하세요</p>
-                </div>
-                <div id="stats-hq" class="stats-panel hidden"></div>
+            <!-- 통합 그래프: Pitch + Duration -->
+            <div id="unified-chart" class="interactive-chart-container"></div>
+
+            <div class="edit-info">
+                <p>📌 <strong>Pitch 편집:</strong> 파란 점을 위/아래로 드래그하세요</p>
+                <p>📌 <strong>Duration 편집:</strong> 마우스로 구간을 선택하고 ratio를 입력하세요</p>
             </div>
 
-            <!-- External 파이프라인 -->
-            <div id="pipeline-external" class="pipeline-view hidden">
-                <div class="controls">
-                    <button id="analyze-ext" class="btn btn-primary" disabled>분석 (SoundTouch)</button>
-                    <button id="edit-fullscreen-ext" class="btn btn-secondary" disabled>전체 화면 편집</button>
-                    <button id="apply-ext" class="btn btn-success" disabled>편집 적용</button>
-                    <button id="reset-ext" class="btn btn-warning" disabled>편집 초기화</button>
+            <!-- 알고리즘 선택 및 처리 순서 -->
+            <div class="algorithm-settings">
+                <h3 style="margin-bottom: 16px; color: var(--text-secondary);">⚙️ 처리 설정</h3>
+
+                <div class="settings-grid">
+                    <!-- Pitch 알고리즘 선택 -->
+                    <div class="setting-group">
+                        <label>🎵 Pitch 알고리즘 (새로운 파이프라인)</label>
+                        <select id="pitch-algorithm" class="modern-select">
+                            <option value="psola">PSOLA (빠른 미리듣기 1-2초)</option>
+                            <option value="phase-vocoder">Phase Vocoder (최고 품질, 5-10초)</option>
+                            <option value="soundtouch">SoundTouch (안정적, 200ms 프레임)</option>
+                            <option value="rubberband">RubberBand (최고 정확도, 100ms 프레임)</option>
+                        </select>
+                        <small style="color: var(--text-secondary); font-size: 0.85em; display: block; margin-top: 4px;">
+                            ✨ Gradient 기반 outlier correction + Cubic spline interpolation 자동 적용
+                        </small>
+                    </div>
+
+                    <!-- Duration 알고리즘 선택 -->
+                    <div class="setting-group">
+                        <label>⏱️ Duration 알고리즘</label>
+                        <select id="duration-algorithm" class="modern-select">
+                            <option value="none">없음 (Duration 처리 안 함)</option>
+                            <option value="wsola">WSOLA (빠른 처리)</option>
+                            <option value="soundtouch">SoundTouch (안정적, 권장)</option>
+                            <option value="rubberband">RubberBand (최고 품질)</option>
+                        </select>
+                        <small>✨ Frame-by-frame variable duration 지원</small>
+                    </div>
+
+                    <!-- 처리 순서 선택 -->
+                    <div class="setting-group">
+                        <label>🔄 처리 방식</label>
+                        <select id="processing-order" class="modern-select">
+                            <option value="pitch-first">Pitch → Duration</option>
+                            <option value="duration-first">Duration → Pitch</option>
+                            <option value="direct">Direct (통합 처리)</option>
+                        </select>
+                    </div>
                 </div>
-                <div id="chart-ext" class="interactive-chart-container"></div>
-                <div class="edit-info">
-                    <p>📌 <strong>Pitch 편집:</strong> 파란 점을 위/아래로 드래그하세요</p>
-                    <p>📌 <strong>Duration 편집:</strong> 마우스로 구간을 선택하고 ratio를 입력하세요</p>
-                    <p>💡 <strong>Tip:</strong> 더 편한 편집을 원하시면 "전체 화면 편집" 버튼을 클릭하세요</p>
+
+                <div class="processing-info">
+                    <p id="processing-description" style="color: var(--text-muted); font-size: 0.9em; margin-top: 12px;">
+                        💡 <strong>Pitch → Duration:</strong> 음높이를 먼저 변경한 후 재생 속도를 조절합니다.
+                    </p>
                 </div>
-                <div id="stats-ext" class="stats-panel hidden"></div>
             </div>
 
-            <!-- A/B 비교 뷰 -->
-            <div id="pipeline-compare" class="pipeline-view hidden">
+            <!-- 샘플 생성 및 재생 -->
+            <div class="sample-controls">
+                <h3 style="margin-bottom: 16px; color: var(--text-secondary);">🎧 미리듣기</h3>
                 <div class="controls">
-                    <button id="compare-run" class="btn btn-primary" disabled>같은 편집으로 비교</button>
+                    <button id="generate-sample" class="btn btn-success" disabled>샘플 생성</button>
+                    <button id="play-sample" class="btn btn-secondary" disabled>재생</button>
+                    <button id="stop-sample" class="btn btn-secondary" disabled>정지</button>
+                    <button id="download-sample" class="btn btn-secondary" disabled>샘플 다운로드</button>
                 </div>
-                <div class="compare-layout">
-                    <div class="compare-left">
-                        <h3>HighQuality (자체 구현)</h3>
-                        <div id="chart-compare-hq" class="compare-chart"></div>
-                        <button id="play-compare-hq" class="btn btn-secondary" disabled>재생</button>
-                    </div>
-                    <div class="compare-right">
-                        <h3>External (SoundTouch)</h3>
-                        <div id="chart-compare-ext" class="compare-chart"></div>
-                        <button id="play-compare-ext" class="btn btn-secondary" disabled>재생</button>
-                    </div>
-                </div>
-                <div id="compare-stats" class="compare-stats hidden"></div>
-                <div class="report-controls hidden" id="report-controls">
-                    <h3 style="margin-top: 24px; margin-bottom: 12px;">벤치마크 리포트</h3>
-                    <div class="controls">
-                        <button id="download-report-json" class="btn btn-success">JSON 다운로드</button>
-                        <button id="download-report-html" class="btn btn-success">HTML 리포트 다운로드</button>
-                    </div>
-                </div>
+                <div id="sample-status" class="status-text"></div>
+                <div id="sample-waveform" class="mini-waveform hidden"></div>
             </div>
         </section>
 
@@ -130,6 +142,8 @@
                 <div style="margin-bottom: 10px;">
                     <label for="timeStretchQuality">알고리즘 품질:</label>
                     <select id="timeStretchQuality">
+                        <option value="rubberband">RubberBand - 최고 품질 (느림, GPL)</option>
+                        <option value="phase-vocoder">Phase Vocoder - 매우 높은 품질</option>
                         <option value="external" selected>External (SoundTouch) - 권장</option>
                         <option value="high">High Quality (WSOLA) - 고품질</option>
                         <option value="fast">Fast (Frame Manipulation) - 빠름</option>

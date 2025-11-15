@@ -28,10 +28,17 @@ public:
     void setSampleRate(int rate);
     void setChannels(int channels);
 
+    // Pitch curve 메타데이터 (Variable pitch shift용)
+    void setPitchCurve(const std::vector<float>& curve);
+    const std::vector<float>& getPitchCurve() const;
+    bool hasPitchCurve() const;
+    void clearPitchCurve();
+
 private:
     std::vector<float> data_;
     int sampleRate_;
     int channels_;
+    std::vector<float> pitchCurve_;  // 각 샘플의 semitones 값 (variable pitch shift용)
 };
 
 #endif // AUDIOBUFFER_H

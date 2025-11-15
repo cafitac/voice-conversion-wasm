@@ -55,3 +55,20 @@ void AudioBuffer::setSampleRate(int rate) {
 void AudioBuffer::setChannels(int channels) {
     channels_ = channels;
 }
+
+// Pitch curve 메타데이터 관리
+void AudioBuffer::setPitchCurve(const std::vector<float>& curve) {
+    pitchCurve_ = curve;
+}
+
+const std::vector<float>& AudioBuffer::getPitchCurve() const {
+    return pitchCurve_;
+}
+
+bool AudioBuffer::hasPitchCurve() const {
+    return !pitchCurve_.empty();
+}
+
+void AudioBuffer::clearPitchCurve() {
+    pitchCurve_.clear();
+}

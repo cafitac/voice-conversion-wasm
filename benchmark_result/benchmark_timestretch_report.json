@@ -1,0 +1,51 @@
+{
+  "benchmarkType": "TimeStretch",
+  "timestamp": 1762963063,
+  "results": [
+    {
+      "algorithm": "FastTimeStretch (Frame Repeat/Skip)",
+      "ratio": 1.5000,
+      "processingTimeMs": 0.5790,
+      "throughputSamplesPerSec": 389084628.6701,
+      "realtimeFactor": 0.0001,
+      "snr": 0.0000,
+      "rmsError": 0.0000
+    },
+    {
+      "algorithm": "HighQualityTimeStretch (WSOLA)",
+      "ratio": 1.5000,
+      "processingTimeMs": 106.9420,
+      "throughputSamplesPerSec": 2106562.4357,
+      "realtimeFactor": 0.0228,
+      "snr": 0.0000,
+      "rmsError": 0.0000
+    },
+    {
+      "algorithm": "ExternalTimeStretch (SoundTouch)",
+      "ratio": 1.5000,
+      "processingTimeMs": 29.4310,
+      "throughputSamplesPerSec": 7654513.9479,
+      "realtimeFactor": 0.0063,
+      "snr": 0.0000,
+      "rmsError": 0.0000
+    },
+    {
+      "algorithm": "PhaseVocoder Time Stretch",
+      "ratio": 1.5000,
+      "processingTimeMs": 663.9470,
+      "throughputSamplesPerSec": 339304.1914,
+      "realtimeFactor": 0.1415,
+      "snr": 0.0000,
+      "rmsError": 0.0000
+    },
+    {
+      "algorithm": "RubberBand Time Stretch",
+      "ratio": 1.5000,
+      "processingTimeMs": 185.3910,
+      "throughputSamplesPerSec": 1215161.4695,
+      "realtimeFactor": 0.0395,
+      "snr": 0.0000,
+      "rmsError": 0.0000
+    }
+  ]
+}

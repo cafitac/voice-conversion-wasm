@@ -1,0 +1,76 @@
+{
+  "benchmarkType": "Combined",
+  "timestamp": 1762963066,
+  "results": [
+    {
+      "method": "Sequential: Pitch then TimeStretch",
+      "targetPitchSemitones": 3.0000,
+      "targetDurationRatio": 1.5000,
+      "processingTimeMs": 55.7840,
+      "originalPitch": 124.4442,
+      "outputPitch": 147.4634,
+      "actualPitchSemitones": 2.9383,
+      "pitchError": -0.0617,
+      "originalDuration": 4.6933,
+      "outputDuration": 7.0400,
+      "actualDurationRatio": 1.5000,
+      "durationError": 0.0000
+    },
+    {
+      "method": "Sequential: TimeStretch then Pitch",
+      "targetPitchSemitones": 3.0000,
+      "targetDurationRatio": 1.5000,
+      "processingTimeMs": 71.0060,
+      "originalPitch": 124.4442,
+      "outputPitch": 147.4691,
+      "actualPitchSemitones": 2.9390,
+      "pitchError": -0.0610,
+      "originalDuration": 4.6933,
+      "outputDuration": 7.0400,
+      "actualDurationRatio": 1.5000,
+      "durationError": 0.0000
+    },
+    {
+      "method": "Direct: SoundTouch Combined",
+      "targetPitchSemitones": 3.0000,
+      "targetDurationRatio": 1.5000,
+      "processingTimeMs": 38.4590,
+      "originalPitch": 124.4442,
+      "outputPitch": 147.4801,
+      "actualPitchSemitones": 2.9403,
+      "pitchError": -0.0597,
+      "originalDuration": 4.6933,
+      "outputDuration": 7.0400,
+      "actualDurationRatio": 1.5000,
+      "durationError": 0.0000
+    },
+    {
+      "method": "Sequential: Phase Vocoder (Pitch + TimeStretch)",
+      "targetPitchSemitones": 3.0000,
+      "targetDurationRatio": 1.5000,
+      "processingTimeMs": 702.8430,
+      "originalPitch": 124.4442,
+      "outputPitch": 350.7044,
+      "actualPitchSemitones": 17.9371,
+      "pitchError": 14.9371,
+      "originalDuration": 4.6933,
+      "outputDuration": 7.0400,
+      "actualDurationRatio": 1.5000,
+      "durationError": 0.0000
+    },
+    {
+      "method": "Direct: RubberBand Combined",
+      "targetPitchSemitones": 3.0000,
+      "targetDurationRatio": 1.5000,
+      "processingTimeMs": 213.0600,
+      "originalPitch": 124.4442,
+      "outputPitch": 149.2406,
+      "actualPitchSemitones": 3.1457,
+      "pitchError": 0.1457,
+      "originalDuration": 4.6933,
+      "outputDuration": 7.0400,
+      "actualDurationRatio": 1.5000,
+      "durationError": 0.0000
+    }
+  ]
+}

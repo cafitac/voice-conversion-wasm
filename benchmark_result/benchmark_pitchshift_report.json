@@ -1,0 +1,71 @@
+{
+  "benchmarkType": "PitchShift",
+  "timestamp": 1762963060,
+  "results": [
+    {
+      "algorithm": "FastPitchShift (Simple Resampling)",
+      "semitones": 3.0000,
+      "processingTimeMs": 0.3000,
+      "throughputSamplesPerSec": 750933333.3333,
+      "realtimeFactor": 0.0001,
+      "originalPitch": 124.4442,
+      "outputPitch": 147.4443,
+      "actualPitchSemitones": 2.9361,
+      "pitchError": -0.0639,
+      "durationRatio": 0.8409,
+      "rmsError": 0.0605
+    },
+    {
+      "algorithm": "HighQualityPitchShift (Phase Vocoder)",
+      "semitones": 3.0000,
+      "processingTimeMs": 37.2340,
+      "throughputSamplesPerSec": 6050384.0576,
+      "realtimeFactor": 0.0079,
+      "originalPitch": 124.4442,
+      "outputPitch": 347.3238,
+      "actualPitchSemitones": 17.7694,
+      "pitchError": 14.7694,
+      "durationRatio": 1.0000,
+      "rmsError": 0.0406
+    },
+    {
+      "algorithm": "ExternalPitchShift (SoundTouch)",
+      "semitones": 3.0000,
+      "processingTimeMs": 25.6490,
+      "throughputSamplesPerSec": 8783188.4284,
+      "realtimeFactor": 0.0055,
+      "originalPitch": 124.4442,
+      "outputPitch": 147.2737,
+      "actualPitchSemitones": 2.9160,
+      "pitchError": -0.0840,
+      "durationRatio": 1.0000,
+      "rmsError": 0.0584
+    },
+    {
+      "algorithm": "PSOLA Pitch Shift",
+      "semitones": 3.0000,
+      "processingTimeMs": 1440.1180,
+      "throughputSamplesPerSec": 156431.6257,
+      "realtimeFactor": 0.3068,
+      "originalPitch": 124.4442,
+      "outputPitch": 147.8215,
+      "actualPitchSemitones": 2.9803,
+      "pitchError": -0.0197,
+      "durationRatio": 0.8386,
+      "rmsError": 0.0620
+    },
+    {
+      "algorithm": "RubberBand Pitch Shift",
+      "semitones": 3.0000,
+      "processingTimeMs": 169.7030,
+      "throughputSamplesPerSec": 1327495.6836,
+      "realtimeFactor": 0.0362,
+      "originalPitch": 124.4442,
+      "outputPitch": 147.9828,
+      "actualPitchSemitones": 2.9992,
+      "pitchError": -0.0008,
+      "durationRatio": 1.0000,
+      "rmsError": 0.0556
+    }
+  ]
+}

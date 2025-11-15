@@ -44,6 +44,18 @@ public:
     );
 
     /**
+     * Time stretching (pitch 변경 없이 duration만 조정)
+     *
+     * @param signal 입력 신호
+     * @param ratio Stretch ratio (1.5 = 느리게, 0.5 = 빠르게)
+     * @return Time stretched 신호
+     */
+    std::vector<float> timeStretch(
+        const std::vector<float>& signal,
+        float ratio
+    );
+
+    /**
      * FFT/Hop 크기 반환
      */
     int getFFTSize() const { return fftSize_; }
@@ -57,6 +69,16 @@ private:
      * Hanning window 생성
      */
     std::vector<float> createHanningWindow(int size);
+
+    /**
+     * Phase propagation for time stretching
+     */
+    void propagatePhase(
+        std::vector<std::complex<float>>& spectrum,
+        const std::vector<float>& previousPhase,
+        std::vector<float>& currentPhase,
+        float phaseAdvance
+    );
 };
 
 #endif // PHASEVOCODER_H

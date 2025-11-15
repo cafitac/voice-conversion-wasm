@@ -1,6 +1,8 @@
 import { AudioRecorder } from './audio-recorder.js';
 import { AudioPlayer } from './audio-player.js';
 import { InteractiveEditor } from './interactive-editor.js';
+import { UnifiedEditor } from './unified-editor.js';
+import { convertPipelineResultToFloat32Array } from './audio-utils.js';
 
 export class UIController {
     constructor() {
@@ -23,6 +25,11 @@ export class UIController {
         this.resultHighQuality = null;
         this.resultExternal = null;
 
+        // 통합 에디터 (새로운 UI)
+        this.unifiedEditor = null;
+        this.sampleAudio = null;
+        this.samplePlayer = new AudioPlayer();
+
         // 벤치마크 리포트 데이터
         this.benchmarkReport = null;
     }
@@ -42,9 +49,13 @@ export class UIController {
         this.editorHighQuality = new InteractiveEditor('chart-hq');
         this.editorExternal = new InteractiveEditor('chart-ext');
 
+        // 통합 에디터 초기화 (Module 전달)
+        this.unifiedEditor = new UnifiedEditor('unified-chart', this.module);
+
         // 전역 등록 (region 삭제용)
         window.editor_chart_hq = this.editorHighQuality;
         window.editor_chart_ext = this.editorExternal;
+        window.unifiedEditor = this.unifiedEditor;
 
         this.setupEventListeners();
 
@@ -68,36 +79,57 @@ export class UIController {
         document.getElementById('playOriginal').addEventListener('click', () => this.playOriginal());
         document.getElementById('downloadOriginal').addEventListener('click', () => this.downloadOriginal());
 
-        // 탭 전환
-        document.getElementById('tab-highquality').addEventListener('click', () => this.switchTab('highquality'));
-        document.getElementById('tab-external').addEventListener('click', () => this.switchTab('external'));
-        document.getElementById('tab-compare').addEventListener('click', () => this.switchTab('compare'));
+        // 탭 전환 (레거시 - 조건부)
+        if (document.getElementById('tab-highquality')) {
+            document.getElementById('tab-highquality').addEventListener('click', () => this.switchTab('highquality'));
+            document.getElementById('tab-external').addEventListener('click', () => this.switchTab('external'));
+            document.getElementById('tab-compare').addEventListener('click', () => this.switchTab('compare'));
+        }
 
-        // HighQuality 파이프라인 버튼
-        document.getElementById('analyze-hq').addEventListener('click', () => this.analyzeHighQuality());
-        document.getElementById('edit-fullscreen-hq').addEventListener('click', () => this.openFullscreenEditor('highquality'));
-        document.getElementById('apply-hq').addEventListener('click', () => this.applyEditsHighQuality());
-        document.getElementById('reset-hq').addEventListener('click', () => this.resetHighQuality());
+        // HighQuality 파이프라인 버튼 (레거시 - 조건부)
+        if (document.getElementById('analyze-hq')) {
+            document.getElementById('analyze-hq').addEventListener('click', () => this.analyzeHighQuality());
+            document.getElementById('edit-fullscreen-hq').addEventListener('click', () => this.openFullscreenEditor('highquality'));
+            document.getElementById('apply-hq').addEventListener('click', () => this.applyEditsHighQuality());
+            document.getElementById('reset-hq').addEventListener('click', () => this.resetHighQuality());
+        }
 
-        // External 파이프라인 버튼
-        document.getElementById('analyze-ext').addEventListener('click', () => this.analyzeExternal());
-        document.getElementById('edit-fullscreen-ext').addEventListener('click', () => this.openFullscreenEditor('external'));
-        document.getElementById('apply-ext').addEventListener('click', () => this.applyEditsExternal());
-        document.getElementById('reset-ext').addEventListener('click', () => this.resetExternal());
+        // External 파이프라인 버튼 (레거시 - 조건부)
+        if (document.getElementById('analyze-ext')) {
+            document.getElementById('analyze-ext').addEventListener('click', () => this.analyzeExternal());
+            document.getElementById('edit-fullscreen-ext').addEventListener('click', () => this.openFullscreenEditor('external'));
+            document.getElementById('apply-ext').addEventListener('click', () => this.applyEditsExternal());
+            document.getElementById('reset-ext').addEventListener('click', () => this.resetExternal());
+        }
 
-        // 비교 버튼
-        document.getElementById('compare-run').addEventListener('click', () => this.runComparison());
-        document.getElementById('play-compare-hq').addEventListener('click', () => this.playCompareHighQuality());
-        document.getElementById('play-compare-ext').addEventListener('click', () => this.playCompareExternal());
+        // 비교 버튼 (레거시 - 조건부)
+        if (document.getElementById('compare-run')) {
+            document.getElementById('compare-run').addEventListener('click', () => this.runComparison());
+            document.getElementById('play-compare-hq').addEventListener('click', () => this.playCompareHighQuality());
+            document.getElementById('play-compare-ext').addEventListener('click', () => this.playCompareExternal());
+        }
 
-        // 리포트 다운로드 버튼
-        document.getElementById('download-report-json').addEventListener('click', () => this.downloadReportJSON());
-        document.getElementById('download-report-html').addEventListener('click', () => this.downloadReportHTML());
+        // 리포트 다운로드 버튼 (레거시 - 조건부)
+        if (document.getElementById('download-report-json')) {
+            document.getElementById('download-report-json').addEventListener('click', () => this.downloadReportJSON());
+            document.getElementById('download-report-html').addEventListener('click', () => this.downloadReportHTML());
+        }
 
         // 효과 버튼
         document.getElementById('applyPitchShift').addEventListener('click', () => this.applyPitchShift());
         document.getElementById('applyTimeStretch').addEventListener('click', () => this.applyTimeStretch());
         document.getElementById('applyFilter').addEventListener('click', () => this.applyFilter());
+
+        // 통합 에디터 버튼
+        if (document.getElementById("analyze-unified")) {
+            document.getElementById("analyze-unified").addEventListener("click", () => this.analyzeUnified());
+            document.getElementById("reset-unified").addEventListener("click", () => this.resetUnified());
+            document.getElementById("generate-sample").addEventListener("click", () => this.generateSample());
+            document.getElementById("play-sample").addEventListener("click", () => this.playSample());
+            document.getElementById("stop-sample").addEventListener("click", () => this.stopSample());
+            document.getElementById("download-sample").addEventListener("click", () => this.downloadSample());
+            document.getElementById("processing-order").addEventListener("change", () => this.updateProcessingDescription());
+        }
 
         // 재생 및 다운로드
         document.getElementById('playProcessed').addEventListener('click', () => this.playProcessed());
@@ -191,10 +223,21 @@ export class UIController {
         document.getElementById('applyTimeStretch').disabled = false;
         document.getElementById('applyFilter').disabled = false;
 
-        // Interactive editor analyze 버튼 활성화
-        document.getElementById('analyze-hq').disabled = false;
-        document.getElementById('analyze-ext').disabled = false;
-        document.getElementById('compare-run').disabled = false;
+        // Interactive editor analyze 버튼 활성화 (조건부)
+        if (document.getElementById('analyze-hq')) {
+            document.getElementById('analyze-hq').disabled = false;
+        }
+        if (document.getElementById('analyze-ext')) {
+            document.getElementById('analyze-ext').disabled = false;
+        }
+        if (document.getElementById('compare-run')) {
+            document.getElementById('compare-run').disabled = false;
+        }
+
+        // 통합 에디터 분석 버튼 활성화
+        if (document.getElementById('analyze-unified')) {
+            document.getElementById('analyze-unified').disabled = false;
+        }
 
         // 파형 그리기
         this.drawWaveform(this.originalAudio);
@@ -226,8 +269,43 @@ export class UIController {
             // Sample Rate 추출 (offset 24, 4 bytes, little-endian)
             this.sampleRate = view.getUint32(24, true);
 
-            this.originalAudio = wavData;
-            this.currentAudioData = wavData;
+            // Bits per sample 추출 (offset 34, 2 bytes)
+            const bitsPerSample = view.getUint16(34, true);
+
+            // 채널 수 추출 (offset 22, 2 bytes)
+            const numChannels = view.getUint16(22, true);
+
+            // PCM 데이터 시작 위치 찾기 (일반적으로 44바이트 이후)
+            let dataOffset = 44;
+
+            // PCM 데이터 추출
+            const pcmData = wavData.slice(dataOffset);
+
+            // Float32Array로 변환
+            let float32Data;
+            if (bitsPerSample === 16) {
+                const int16Data = new Int16Array(pcmData.buffer, pcmData.byteOffset, pcmData.byteLength / 2);
+                float32Data = new Float32Array(int16Data.length);
+                for (let i = 0; i < int16Data.length; i++) {
+                    float32Data[i] = int16Data[i] / 32768.0;
+                }
+            } else if (bitsPerSample === 32) {
+                float32Data = new Float32Array(pcmData.buffer, pcmData.byteOffset, pcmData.byteLength / 4);
+            } else {
+                throw new Error(`지원하지 않는 비트 깊이입니다: ${bitsPerSample}bit`);
+            }
+
+            // 스테레오를 모노로 변환
+            if (numChannels === 2) {
+                const monoData = new Float32Array(float32Data.length / 2);
+                for (let i = 0; i < monoData.length; i++) {
+                    monoData[i] = (float32Data[i * 2] + float32Data[i * 2 + 1]) / 2;
+                }
+                float32Data = monoData;
+            }
+
+            this.originalAudio = float32Data;
+            this.currentAudioData = float32Data;
 
             document.getElementById('recordStatus').textContent = `파일 업로드 완료! (${file.name}, ${this.sampleRate}Hz)`;
             document.getElementById('playOriginal').disabled = false;
@@ -236,10 +314,21 @@ export class UIController {
             document.getElementById('applyTimeStretch').disabled = false;
             document.getElementById('applyFilter').disabled = false;
 
-            // Interactive editor analyze 버튼 활성화
-            document.getElementById('analyze-hq').disabled = false;
-            document.getElementById('analyze-ext').disabled = false;
-            document.getElementById('compare-run').disabled = false;
+            // Interactive editor analyze 버튼 활성화 (조건부)
+            if (document.getElementById('analyze-hq')) {
+                document.getElementById('analyze-hq').disabled = false;
+            }
+            if (document.getElementById('analyze-ext')) {
+                document.getElementById('analyze-ext').disabled = false;
+            }
+            if (document.getElementById('compare-run')) {
+                document.getElementById('compare-run').disabled = false;
+            }
+
+            // 통합 에디터 분석 버튼 활성화
+            if (document.getElementById('analyze-unified')) {
+                document.getElementById('analyze-unified').disabled = false;
+            }
 
             // 파형 그리기
             this.drawWaveform(this.originalAudio);
@@ -249,8 +338,8 @@ export class UIController {
         }
     }
 
-    drawWaveform(wavData) {
-        // WAV 데이터를 Canvas에 간단히 그리기
+    drawWaveform(audioData) {
+        // 오디오 데이터를 Canvas에 그리기
         const canvas = document.getElementById('waveformCanvas');
         const ctx = canvas.getContext('2d');
         const width = canvas.width = canvas.clientWidth;
@@ -259,11 +348,18 @@ export class UIController {
         ctx.fillStyle = '#1a1a1a';
         ctx.fillRect(0, 0, width, height);
 
-        const dataView = new DataView(wavData.buffer);
-        const samples = [];
-        for (let i = 44; i < wavData.length; i += 2) {
-            const sample = dataView.getInt16(i, true) / 32768.0;
-            samples.push(sample);
+        let samples;
+        if (audioData instanceof Float32Array) {
+            // Float32Array는 그대로 사용
+            samples = Array.from(audioData);
+        } else {
+            // WAV 데이터 (Uint8Array)에서 샘플 추출
+            const dataView = new DataView(audioData.buffer);
+            samples = [];
+            for (let i = 44; i < audioData.length; i += 2) {
+                const sample = dataView.getInt16(i, true) / 32768.0;
+                samples.push(sample);
+            }
         }
 
         const step = Math.floor(samples.length / width);
@@ -286,7 +382,11 @@ export class UIController {
 
     async playOriginal() {
         try {
-            await this.player.playWavData(this.originalAudio);
+            if (this.originalAudio instanceof Float32Array) {
+                await this.player.playFloat32Array(this.originalAudio, this.sampleRate);
+            } else {
+                await this.player.playWavData(this.originalAudio);
+            }
         } catch (error) {
             console.error('재생 실패:', error);
             alert('재생 실패: ' + error.message);
@@ -294,50 +394,79 @@ export class UIController {
     }
 
     downloadOriginal() {
-        this.player.downloadWav(this.originalAudio, 'original.wav');
+        if (this.originalAudio instanceof Float32Array) {
+            // Float32Array를 WAV로 변환
+            const wavData = this.float32ToWav(this.originalAudio);
+            this.player.downloadWav(wavData, 'original.wav');
+        } else {
+            this.player.downloadWav(this.originalAudio, 'original.wav');
+        }
     }
 
-    async analyzeVoice() {
-        // WAV 데이터를 Float32Array로 변환
-        const float32Data = this.wavToFloat32(this.currentAudioData);
-
-        // WASM 메모리에 복사
-        const dataPtr = this.module._malloc(float32Data.length * 4);
-        this.module.HEAPF32.set(float32Data, dataPtr / 4);
-
-        // C++에서 직접 Canvas에 그리기
-        this.module.drawCombinedAnalysis(dataPtr, float32Data.length, this.sampleRate, 'analysisCanvas');
-
-        this.module._free(dataPtr);
-
-        // Calculate max time
-        this.audioMaxTime = float32Data.length / this.sampleRate;
-    }
-
+    /**
+     * Pitch quality 설정 (새 Pipeline 아키텍처)
+     * Quality를 알고리즘 이름으로 변환
+     */
     setPitchQuality(quality) {
         try {
-            this.module.setPitchShiftQuality(quality);
-            const currentQualityName = this.module.getPitchShiftQuality();
-            document.getElementById('currentQuality').textContent = `현재: ${currentQualityName}`;
-            console.log(`Pitch quality set to: ${quality} (${currentQualityName})`);
+            // Quality를 알고리즘 이름으로 매핑
+            const algorithmMap = {
+                'fast': 'psola',
+                'high': 'phase-vocoder',
+                'external': 'soundtouch'
+            };
+            this.currentPitchAlgorithm = algorithmMap[quality] || 'phase-vocoder';
+
+            const displayNames = {
+                'psola': 'PSOLA (Fast)',
+                'phase-vocoder': 'Phase Vocoder (High Quality)',
+                'soundtouch': 'SoundTouch (External)'
+            };
+
+            document.getElementById('currentQuality').textContent =
+                `현재: ${displayNames[this.currentPitchAlgorithm]}`;
+            console.log(`Pitch algorithm set to: ${this.currentPitchAlgorithm}`);
         } catch (error) {
             console.error('Failed to set pitch quality:', error);
         }
     }
 
+    /**
+     * TimeStretch quality 설정 (새 Pipeline 아키텍처)
+     * Quality를 알고리즘 이름으로 변환
+     */
     setTimeStretchQuality(quality) {
         try {
-            this.module.setTimeStretchQuality(quality);
-            const currentQualityName = this.module.getTimeStretchQuality();
-            document.getElementById('currentTimeStretchQuality').textContent = `현재: ${currentQualityName}`;
-            console.log(`TimeStretch quality set to: ${quality} (${currentQualityName})`);
+            // Quality를 알고리즘 이름으로 매핑
+            const algorithmMap = {
+                'fast': 'wsola',
+                'high': 'soundtouch',
+                'phase-vocoder': 'soundtouch',
+                'rubberband': 'rubberband',
+                'external': 'soundtouch'
+            };
+            this.currentDurationAlgorithm = algorithmMap[quality] || 'soundtouch';
+
+            const displayNames = {
+                'wsola': 'WSOLA (Fast)',
+                'soundtouch': 'SoundTouch',
+                'rubberband': 'RubberBand (High Quality)'
+            };
+
+            document.getElementById('currentTimeStretchQuality').textContent =
+                `현재: ${displayNames[this.currentDurationAlgorithm]}`;
+            console.log(`Duration algorithm set to: ${this.currentDurationAlgorithm}`);
         } catch (error) {
             console.error('Failed to set timestretch quality:', error);
         }
     }
 
+    /**
+     * Pitch Shift 적용 (새 Pipeline 아키텍처 사용)
+     * 전체 오디오에 일정한 pitch shift 적용
+     */
     async applyPitchShift() {
-        console.log('applyPitchShift called');
+        console.log('applyPitchShift called (using new Pipeline)');
 
         try {
             const semitones = parseFloat(document.getElementById('pitchShift').value);
@@ -348,61 +477,162 @@ export class UIController {
                 return;
             }
 
-            const float32Data = this.wavToFloat32(this.currentAudioData);
+            // Float32Array로 변환 (필요시)
+            const float32Data = this.currentAudioData instanceof Float32Array
+                ? this.currentAudioData
+                : this.wavToFloat32(this.currentAudioData);
             console.log('Input audio samples:', float32Data.length);
 
+            const duration = float32Data.length / this.sampleRate;
+
+            // 전체 오디오에 일정한 pitch shift를 위한 edit points 생성
+            const editPoints = [
+                { time: 0, semitones: semitones },
+                { time: duration, semitones: semitones }
+            ];
+
+            // 1단계: 전처리 + 보간
+            const interpolatedFrames = this.module.preprocessAndInterpolate(
+                duration,
+                this.sampleRate,
+                editPoints,
+                3.0,   // gradientThreshold
+                0.02   // frameInterval
+            );
+
+            console.log(`✓ Preprocessed ${interpolatedFrames.length} frames`);
+
+            // 2단계: Pipeline 처리
             const dataPtr = this.module._malloc(float32Data.length * 4);
             this.module.HEAPF32.set(float32Data, dataPtr / 4);
 
-            const result = this.module.applyPitchShift(dataPtr, float32Data.length, this.sampleRate, semitones);
-            console.log('Pitch shift result:', result);
+            const algorithm = this.currentPitchAlgorithm || 'phase-vocoder';
+            console.log(`✓ Using pitch algorithm: ${algorithm}`);
+
+            const resultView = this.module.processAudioWithPipeline(
+                dataPtr,
+                float32Data.length,
+                this.sampleRate,
+                interpolatedFrames,
+                algorithm,      // Pitch algorithm
+                'none',         // No duration processing
+                false,          // previewMode
+                3.0,            // gradientThreshold
+                0.02            // frameInterval
+            );
 
             this.module._free(dataPtr);
 
-            this.processedAudio = this.float32ToWav(new Float32Array(result));
+            // Float32Array로 변환
+            this.processedAudio = convertPipelineResultToFloat32Array(resultView);
+
             this.currentAudioData = this.processedAudio;
-            console.log('Processed audio created, size:', this.processedAudio.length);
+            console.log('✓ Processed audio created, size:', this.processedAudio.length);
 
             document.getElementById('playProcessed').disabled = false;
             document.getElementById('downloadProcessed').disabled = false;
 
             this.drawWaveform(this.processedAudio);
-            console.log('Pitch shift completed successfully');
+            console.log('✓ Pitch shift completed successfully');
         } catch (error) {
             console.error('Pitch shift 실패:', error);
             alert('Pitch shift 실패: ' + error.message);
         }
     }
 
+    /**
+     * Time Stretch 적용 (새 Pipeline 아키텍처 사용)
+     * 전체 오디오에 일정한 duration 변화 적용
+     */
     async applyTimeStretch() {
-        const speed = parseFloat(document.getElementById('timeStretch').value);
-        // Speed를 Duration Ratio로 변환
-        // speed = 0.5 (느리게) → ratio = 2.0 (duration 2배)
-        // speed = 2.0 (빠르게) → ratio = 0.5 (duration 0.5배)
-        const ratio = 1.0 / speed;
+        console.log('applyTimeStretch called (using new Pipeline)');
 
-        const float32Data = this.wavToFloat32(this.currentAudioData);
+        try {
+            const speed = parseFloat(document.getElementById('timeStretch').value);
+            // Speed를 Duration Ratio로 변환
+            // speed = 0.5 (느리게) → ratio = 2.0 (duration 2배)
+            // speed = 2.0 (빠르게) → ratio = 0.5 (duration 0.5배)
+            const ratio = 1.0 / speed;
+            console.log(`Time stretch speed: ${speed}, ratio: ${ratio}`);
 
-        const dataPtr = this.module._malloc(float32Data.length * 4);
-        this.module.HEAPF32.set(float32Data, dataPtr / 4);
+            if (!this.currentAudioData) {
+                alert('먼저 오디오를 녹음하거나 업로드하세요.');
+                return;
+            }
 
-        const result = this.module.applyTimeStretch(dataPtr, float32Data.length, this.sampleRate, ratio);
-        this.module._free(dataPtr);
+            // Float32Array로 변환 (필요시)
+            const float32Data = this.currentAudioData instanceof Float32Array
+                ? this.currentAudioData
+                : this.wavToFloat32(this.currentAudioData);
 
-        this.processedAudio = this.float32ToWav(new Float32Array(result));
-        this.currentAudioData = this.processedAudio;
+            const duration = float32Data.length / this.sampleRate;
 
-        document.getElementById('playProcessed').disabled = false;
-        document.getElementById('downloadProcessed').disabled = false;
+            // Duration만 변경 (pitch는 변경 안 함)
+            // interpolatedFrames를 수동으로 생성 (간단한 구조)
+            const frameInterval = 0.02; // 20ms
+            const numFrames = Math.ceil(duration / frameInterval);
+            const interpolatedFrames = [];
 
-        this.drawWaveform(this.processedAudio);
+            for (let i = 0; i < numFrames; i++) {
+                interpolatedFrames.push({
+                    time: i * frameInterval,
+                    pitchSemitones: 0.0,      // Pitch 변경 없음
+                    durationRatio: ratio,      // Duration ratio 설정
+                    isEdited: false,
+                    isOutlier: false,
+                    isInterpolated: true
+                });
+            }
+
+            console.log(`✓ Created ${interpolatedFrames.length} frames for duration processing`);
+
+            // Pipeline 처리
+            const dataPtr = this.module._malloc(float32Data.length * 4);
+            this.module.HEAPF32.set(float32Data, dataPtr / 4);
+
+            const algorithm = this.currentDurationAlgorithm || 'soundtouch';
+            console.log(`✓ Using duration algorithm: ${algorithm}`);
+
+            const resultView = this.module.processAudioWithPipeline(
+                dataPtr,
+                float32Data.length,
+                this.sampleRate,
+                interpolatedFrames,
+                'none',         // No pitch processing
+                algorithm,      // Duration algorithm
+                false,          // previewMode
+                3.0,            // gradientThreshold
+                0.02            // frameInterval
+            );
+
+            this.module._free(dataPtr);
+
+            // Float32Array로 변환
+            this.processedAudio = convertPipelineResultToFloat32Array(resultView);
+
+            this.currentAudioData = this.processedAudio;
+            console.log('✓ Processed audio created, size:', this.processedAudio.length);
+
+            document.getElementById('playProcessed').disabled = false;
+            document.getElementById('downloadProcessed').disabled = false;
+
+            this.drawWaveform(this.processedAudio);
+            console.log('✓ Time stretch completed successfully');
+        } catch (error) {
+            console.error('Time stretch 실패:', error);
+            alert('Time stretch 실패: ' + error.message);
+        }
     }
 
     async applyFilter() {
         const filterType = parseInt(document.getElementById('filterType').value);
         const param1 = parseFloat(document.getElementById('filterParam1').value);
         const param2 = parseFloat(document.getElementById('filterParam2').value);
-        const float32Data = this.wavToFloat32(this.currentAudioData);
+
+        // Float32Array로 변환 (필요시)
+        const float32Data = this.currentAudioData instanceof Float32Array
+            ? this.currentAudioData
+            : this.wavToFloat32(this.currentAudioData);
 
         const dataPtr = this.module._malloc(float32Data.length * 4);
         this.module.HEAPF32.set(float32Data, dataPtr / 4);
@@ -410,7 +640,8 @@ export class UIController {
         const result = this.module.applyVoiceFilter(dataPtr, float32Data.length, this.sampleRate, filterType, param1, param2);
         this.module._free(dataPtr);
 
-        this.processedAudio = this.float32ToWav(new Float32Array(result));
+        // Float32Array로 저장
+        this.processedAudio = new Float32Array(result);
         this.currentAudioData = this.processedAudio;
 
         document.getElementById('playProcessed').disabled = false;
@@ -430,7 +661,12 @@ export class UIController {
                 return;
             }
             console.log('Playing processed audio, size:', this.processedAudio.length);
-            await this.player.playWavData(this.processedAudio);
+
+            if (this.processedAudio instanceof Float32Array) {
+                await this.player.playFloat32Array(this.processedAudio, this.sampleRate);
+            } else {
+                await this.player.playWavData(this.processedAudio);
+            }
             console.log('Playback completed');
         } catch (error) {
             console.error('재생 실패:', error);
@@ -443,7 +679,13 @@ export class UIController {
             alert('먼저 음성 효과를 적용해주세요.');
             return;
         }
-        this.player.downloadWav(this.processedAudio, 'processed.wav');
+
+        if (this.processedAudio instanceof Float32Array) {
+            const wavData = this.float32ToWav(this.processedAudio);
+            this.player.downloadWav(wavData, 'processed.wav');
+        } else {
+            this.player.downloadWav(this.processedAudio, 'processed.wav');
+        }
     }
 
     reset() {
@@ -1621,5 +1863,261 @@ export class UIController {
         result.set(new Uint8Array(pcmData.buffer), 44);
 
         return result;
+    }
+
+    // ====== 통합 에디터 메서드 ======
+
+    async analyzeUnified() {
+        if (!this.originalAudio) {
+            alert("먼저 음성을 녹음하거나 업로드하세요.");
+            return;
+        }
+
+        try {
+            // Pitch 분석
+            const pitchData = await this.analyzePitchData();
+            
+            // Duration 데이터 (기본 비어있음)
+            const durationData = [];
+
+            // 통합 그래프 렌더링
+            this.unifiedEditor.render(pitchData, durationData);
+
+            // 샘플 생성 버튼 활성화
+            document.getElementById("generate-sample").disabled = false;
+            document.getElementById("reset-unified").disabled = false;
+
+        } catch (error) {
+            console.error("분석 오류:", error);
+            alert("음성 분석 중 오류가 발생했습니다: " + error.message);
+        }
+    }
+
+    async analyzePitchData() {
+        const data = this.originalAudio;
+        const sampleRate = this.sampleRate;
+
+        console.log('analyzePitchData - data type:', data.constructor.name);
+        console.log('analyzePitchData - data length:', data.length);
+        console.log('analyzePitchData - sampleRate:', sampleRate);
+
+        // WASM 모듈로 피치 분석
+        const dataPtr = this.module._malloc(data.length * 4);
+        console.log('analyzePitchData - allocated dataPtr:', dataPtr);
+
+        // Float32Array를 HEAPF32에 복사
+        this.module.HEAPF32.set(data, dataPtr / 4);
+
+        const result = this.module.analyzePitch(dataPtr, data.length, sampleRate, 0.02);
+        console.log('analyzePitchData - result type:', Array.isArray(result) ? 'Array' : typeof result);
+        console.log('analyzePitchData - result length:', result?.length);
+
+        this.module._free(dataPtr);
+
+        if (!result) {
+            throw new Error('Pitch 분석 실패: WASM 모듈이 결과를 반환하지 않았습니다.');
+        }
+
+        // WASM 함수가 이미 JavaScript 배열을 반환하는 경우
+        if (Array.isArray(result)) {
+            console.log('analyzePitchData - 이미 파싱된 배열을 받았습니다');
+            return result;
+        }
+
+        // 포인터를 반환하는 경우 (레거시)
+        const resultPtr = result;
+        const numPoints = this.module.HEAP32[resultPtr / 4];
+        const pitchData = [];
+
+        for (let i = 0; i < numPoints; i++) {
+            const offset = resultPtr + 4 + i * 12;
+            const time = this.module.HEAPF32[offset / 4];
+            const frequency = this.module.HEAPF32[offset / 4 + 1];
+            const confidence = this.module.HEAPF32[offset / 4 + 2];
+
+            pitchData.push({ time, frequency, confidence });
+        }
+
+        this.module._free(resultPtr);
+        return pitchData;
+    }
+
+    async generateSample() {
+        if (!this.originalAudio) {
+            alert("먼저 음성을 분석하세요.");
+            return;
+        }
+
+        try {
+            document.getElementById("sample-status").textContent = "⏳ 샘플 생성 중...";
+
+            // 편집 데이터 가져오기
+            const edits = this.unifiedEditor.getEdits();
+            
+            // 선택된 알고리즘
+            const pitchAlgo = document.getElementById("pitch-algorithm").value;
+            const durationAlgo = document.getElementById("duration-algorithm").value;
+            const processOrder = document.getElementById("processing-order").value;
+
+            // 샘플 생성 (알고리즘과 순서에 따라)
+            this.sampleAudio = await this.processAudioWithEdits(
+                this.originalAudio,
+                edits,
+                pitchAlgo,
+                durationAlgo,
+                processOrder
+            );
+
+            // 재생 버튼 활성화
+            document.getElementById("play-sample").disabled = false;
+            document.getElementById("stop-sample").disabled = false;
+            document.getElementById("download-sample").disabled = false;
+
+            document.getElementById("sample-status").textContent = 
+                `✅ 샘플 생성 완료 (${(this.sampleAudio.length / this.sampleRate).toFixed(2)}초)`;
+
+        } catch (error) {
+            console.error("샘플 생성 오류:", error);
+            document.getElementById("sample-status").textContent = "❌ 샘플 생성 실패";
+            alert("샘플 생성 중 오류가 발생했습니다: " + error.message);
+        }
+    }
+
+    async processAudioWithEdits(audio, edits, pitchAlgo, durationAlgo, processOrder) {
+        let result = new Float32Array(audio);
+
+        // 새로운 파이프라인 아키텍처 사용
+        if (edits.interpolatedFrames && edits.interpolatedFrames.length > 0) {
+            try {
+                // C++ processAudioWithPipeline 호출
+                const dataPtr = this.module._malloc(audio.length * 4);
+                this.module.HEAPF32.set(audio, dataPtr / 4);
+
+                // Preview mode 여부 (빠른 생성인지 최종 생성인지)
+                const previewMode = pitchAlgo === "psola";
+
+                console.log(`✓ Processing with pipeline: pitch=${pitchAlgo}, duration=${durationAlgo || 'none'}, preview=${previewMode}`);
+
+                const resultView = this.module.processAudioWithPipeline(
+                    dataPtr,
+                    audio.length,
+                    this.sampleRate,
+                    edits.interpolatedFrames,
+                    pitchAlgo,
+                    durationAlgo || 'none',  // duration algorithm
+                    previewMode,
+                    3.0,   // gradientThreshold
+                    0.02   // frameInterval
+                );
+
+                // 결과를 Float32Array로 복사
+                result = convertPipelineResultToFloat32Array(resultView);
+
+                // 메모리 해제
+                this.module._free(dataPtr);
+
+                console.log(`✓ Pipeline processing complete: ${result.length} samples`);
+            } catch (error) {
+                console.error('Pipeline processing failed:', error);
+                throw error;  // 에러를 상위로 전달
+            }
+        } else {
+            console.warn('⚠️ No interpolated frames available. Please use the unified editor for variable pitch/duration.');
+        }
+
+        return result;
+    }
+
+    // applyInterpolatedPitchShift 제거됨 - 새 Pipeline 아키텍처 사용
+    // convertPipelineResultToFloat32Array는 audio-utils.js로 이동됨
+
+    /**
+     * 특정 시간의 보간된 semitones 계산
+     */
+    getInterpolatedSemitones(time, editPoints) {
+        if (editPoints.length === 0) {
+            return 0;
+        }
+
+        // 현재 시간 이전과 이후의 편집 포인트 찾기
+        let beforeEdit = null;
+        let afterEdit = null;
+
+        for (let i = 0; i < editPoints.length; i++) {
+            if (editPoints[i].time <= time) {
+                beforeEdit = editPoints[i];
+            }
+            if (editPoints[i].time >= time && !afterEdit) {
+                afterEdit = editPoints[i];
+                break;
+            }
+        }
+
+        if (!beforeEdit && !afterEdit) {
+            // 편집 포인트 없음
+            return 0;
+        } else if (!beforeEdit) {
+            // 첫 번째 편집 포인트 이전 - 원본 유지
+            return 0;
+        } else if (!afterEdit) {
+            // 마지막 편집 포인트 이후 - 원본 유지
+            return 0;
+        } else if (beforeEdit.time === afterEdit.time) {
+            // 정확히 편집 포인트 위치
+            return beforeEdit.semitones;
+        } else {
+            // 두 편집 포인트 사이 - 선형 보간
+            const t = (time - beforeEdit.time) / (afterEdit.time - beforeEdit.time);
+            return beforeEdit.semitones + t * (afterEdit.semitones - beforeEdit.semitones);
+        }
+    }
+
+    // applyDurationEdits, applyPitchShiftWithAlgorithm, applyTimeStretchWithAlgorithm 제거됨
+    // 모두 새 Pipeline 아키텍처로 대체됨
+
+    async playSample() {
+        if (this.sampleAudio) {
+            await this.samplePlayer.playFloat32Array(this.sampleAudio, this.sampleRate);
+        }
+    }
+
+    stopSample() {
+        this.samplePlayer.stop();
+    }
+
+    downloadSample() {
+        if (!this.sampleAudio) return;
+
+        const wavData = this.float32ToWav(this.sampleAudio);
+        const blob = new Blob([wavData], { type: "audio/wav" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "sample_" + new Date().getTime() + ".wav";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    resetUnified() {
+        if (this.unifiedEditor) {
+            this.unifiedEditor.reset();
+        }
+        this.sampleAudio = null;
+        document.getElementById("generate-sample").disabled = false;
+        document.getElementById("play-sample").disabled = true;
+        document.getElementById("stop-sample").disabled = true;
+        document.getElementById("download-sample").disabled = true;
+        document.getElementById("sample-status").textContent = "";
+    }
+
+    updateProcessingDescription() {
+        const order = document.getElementById("processing-order").value;
+        const descriptions = {
+            "pitch-first": "<strong>Pitch → Duration:</strong> 음높이를 먼저 변경한 후 재생 속도를 조절합니다.",
+            "duration-first": "<strong>Duration → Pitch:</strong> 재생 속도를 먼저 조절한 후 음높이를 변경합니다.",
+            "direct": "<strong>Direct (통합 처리):</strong> 한 번에 모든 변환을 적용합니다 (가장 빠름)."
+        };
+        document.getElementById("processing-description").innerHTML =
+            `💡 ${descriptions[order]}`;
     }
 }

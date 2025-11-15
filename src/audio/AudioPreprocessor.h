@@ -6,10 +6,28 @@
 
 // 전처리된 프레임 데이터
 struct FrameData {
+    // 기본 정보
     float time;                  // 시작 시간 (초)
     std::vector<float> samples;  // 프레임의 오디오 샘플들
     float rms;                   // 미리 계산된 RMS (Root Mean Square)
     bool isVoice;                // VAD 결과 (Voice Activity Detection)
+
+    // Pitch/Duration 정보 (Variable processing용)
+    float pitchSemitones;        // 이 프레임의 pitch shift 양 (semitones)
+    float durationRatio;         // 이 프레임의 duration ratio (1.0 = 원본)
+    float originalPitchHz;       // 원본 pitch (Hz, 검출된 값, 0 = 무성음)
+
+    // 메타데이터 (사용자 피드백 및 디버깅용)
+    bool isEdited;               // 사용자가 편집한 프레임인가?
+    bool isOutlier;              // 극단값으로 보정되었는가?
+    bool isInterpolated;         // 보간된 값인가?
+    float editTime;              // 원본 편집 시간 (JS pitchEdits 키, isEdited=true일 때만 유효)
+
+    // 생성자
+    FrameData()
+        : time(0.0f), rms(0.0f), isVoice(false),
+          pitchSemitones(0.0f), durationRatio(1.0f), originalPitchHz(0.0f),
+          isEdited(false), isOutlier(false), isInterpolated(false), editTime(0.0f) {}
 };
 
 /**
