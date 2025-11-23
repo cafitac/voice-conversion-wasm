@@ -47,7 +47,12 @@
       "Bash(/Users/reddit/CLionProjects/school/tests/build_edit_pipeline_test.sh:*)",
       "Bash(git checkout:*)",
       "Bash(git rm:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(./build-dist.sh:*)",
+      "Bash(git submodule:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(tar:*)"
     ],
     "deny": [],
     "ask": []

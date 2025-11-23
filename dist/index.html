@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,235 +7,152 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
-
 <body>
-    <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h1>음성 변조 앱</h1>
-            <a href="benchmark/comprehensive_benchmark_report.html" target="_blank" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                      color: white; text-decoration: none; border-radius: 8px; font-weight: 600;
-                      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); transition: transform 0.2s;"
-                onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                📊 벤치마크 리포트 보기
-            </a>
-        </div>
-
-        <!-- 녹음 섹션 -->
-        <section class="card">
-            <h2>1. 음성 녹음 / 파일 업로드</h2>
-            <div class="controls">
-                <button id="startRecord" class="btn btn-primary">녹음 시작</button>
-                <button id="stopRecord" class="btn btn-danger" disabled>녹음 중지</button>
-                <button id="uploadFile" class="btn btn-primary">파일 업로드</button>
+    <div class="app-container">
+        <!-- 상단 툴바 -->
+        <header class="toolbar">
+            <div class="toolbar-left">
+                <button id="startRecord" class="icon-btn" title="녹음 시작">
+                    <span class="icon">🎤</span>
+                </button>
+                <button id="stopRecord" class="icon-btn recording" title="녹음 중지" disabled>
+                    <span class="icon">⏹</span>
+                </button>
+                <button id="uploadFile" class="icon-btn" title="파일 업로드">
+                    <span class="icon">📁</span>
+                </button>
                 <input type="file" id="fileInput" accept=".wav" style="display: none;">
-                <button id="playOriginal" class="btn btn-secondary" disabled>원본 재생</button>
-                <button id="downloadOriginal" class="btn btn-secondary" disabled>원본 다운로드</button>
+                <span id="fileInfo" class="file-info">파일을 선택하세요</span>
             </div>
-            <div class="status" id="recordStatus">준비 완료</div>
-            <canvas id="waveformCanvas"></canvas>
-        </section>
-
-        <!-- 분석 및 인터랙티브 편집 섹션 -->
-        <section class="card">
-            <h2>2. 음성 분석 및 인터랙티브 편집</h2>
-
-            <!-- 분석 버튼 -->
-            <div class="controls">
-                <button id="analyze-unified" class="btn btn-primary" disabled>음성 분석</button>
-                <button id="reset-unified" class="btn btn-warning" disabled>편집 초기화</button>
+            <div class="toolbar-center">
+                <span class="app-title">음성 변조 앱</span>
             </div>
-
-            <!-- 통합 그래프: Pitch + Duration -->
-            <div id="unified-chart" class="interactive-chart-container"></div>
-
-            <div class="edit-info">
-                <p>📌 <strong>Pitch 편집:</strong> 파란 점을 위/아래로 드래그하세요</p>
-                <p>📌 <strong>Duration 편집:</strong> 마우스로 구간을 선택하고 ratio를 입력하세요</p>
+            <div class="toolbar-right">
+                <button id="playOriginal" class="icon-btn" title="원본 재생" disabled>
+                    <span class="icon">▶</span>
+                </button>
+                <a href="benchmark/comprehensive_benchmark_report.html" target="_blank" class="benchmark-link" title="벤치마크">
+                    📊
+                </a>
             </div>
+        </header>
 
-            <!-- 알고리즘 선택 및 처리 순서 -->
-            <div class="algorithm-settings">
-                <h3 style="margin-bottom: 16px; color: var(--text-secondary);">⚙️ 처리 설정</h3>
-
-                <div class="settings-grid">
-                    <!-- Pitch 알고리즘 선택 -->
-                    <div class="setting-group">
-                        <label>🎵 Pitch 알고리즘 (새로운 파이프라인)</label>
-                        <select id="pitch-algorithm" class="modern-select">
-                            <option value="psola">PSOLA (빠른 미리듣기 1-2초)</option>
-                            <option value="phase-vocoder">Phase Vocoder (최고 품질, 5-10초)</option>
-                            <option value="soundtouch">SoundTouch (안정적, 200ms 프레임)</option>
-                            <option value="rubberband">RubberBand (최고 정확도, 100ms 프레임)</option>
-                        </select>
-                        <small
-                            style="color: var(--text-secondary); font-size: 0.85em; display: block; margin-top: 4px;">
-                            ✨ Gradient 기반 outlier correction + Cubic spline interpolation 자동 적용
-                        </small>
-                    </div>
-
-                    <!-- Duration 알고리즘 선택 -->
-                    <div class="setting-group">
-                        <label>⏱️ Duration 알고리즘</label>
-                        <select id="duration-algorithm" class="modern-select">
-                            <option value="none">없음 (Duration 처리 안 함)</option>
-                            <option value="wsola">WSOLA (빠른 처리)</option>
-                            <option value="soundtouch">SoundTouch (안정적, 권장)</option>
-                            <option value="rubberband">RubberBand (최고 품질)</option>
-                        </select>
-                        <small>✨ Frame-by-frame variable duration 지원</small>
-                    </div>
-
-                    <!-- 처리 순서 선택 -->
-                    <div class="setting-group">
-                        <label>🔄 처리 방식</label>
-                        <select id="processing-order" class="modern-select">
-                            <option value="pitch-first">Pitch → Duration</option>
-                            <option value="duration-first">Duration → Pitch</option>
-                            <option value="direct">Direct (통합 처리)</option>
-                        </select>
+        <!-- 메인 컨텐츠 -->
+        <main class="main-content">
+            <!-- 그래프 영역 -->
+            <div class="graph-area">
+                <div id="pitch-chart" class="pitch-chart">
+                    <div class="empty-state">
+                        <div class="empty-icon">🎵</div>
+                        <p>음성 파일을 녹음하거나 업로드하세요</p>
+                        <p class="hint">왼쪽 상단의 🎤 또는 📁 버튼을 클릭</p>
                     </div>
                 </div>
+            </div>
 
-                <div class="processing-info">
-                    <p id="processing-description"
-                        style="color: var(--text-muted); font-size: 0.9em; margin-top: 12px;">
-                        💡 <strong>Pitch → Duration:</strong> 음높이를 먼저 변경한 후 재생 속도를 조절합니다.
-                    </p>
+            <!-- 오른쪽 사이드바 -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <span class="sidebar-title">⚙️ 효과</span>
                 </div>
-            </div>
 
-            <!-- 샘플 생성 및 재생 -->
-            <div class="sample-controls">
-                <h3 style="margin-bottom: 16px; color: var(--text-secondary);">🎧 미리듣기</h3>
-                <div class="controls">
-                    <button id="generate-sample" class="btn btn-success" disabled>샘플 생성</button>
-                    <button id="play-sample" class="btn btn-secondary" disabled>재생</button>
-                    <button id="stop-sample" class="btn btn-secondary" disabled>정지</button>
-                    <button id="download-sample" class="btn btn-secondary" disabled>샘플 다운로드</button>
-                </div>
-                <div id="sample-status" class="status-text"></div>
-                <div id="sample-waveform" class="mini-waveform hidden"></div>
-            </div>
-        </section>
-
-        <!-- 음성 효과 섹션 -->
-        <section class="card" id="effectsSection">
-            <h2>3. 음성 효과</h2>
-
-            <!-- 안내 문구 (오디오가 없을 때 표시) -->
-            <div id="effectsNotice" class="effects-notice" style="display: none;">
-                <p>⚠️ 먼저 음성 파일을 녹음하거나 업로드해주세요.</p>
-            </div>
-
-            <!-- 음성 효과 컨텐츠 (오디오가 있을 때만 표시) -->
-            <div id="effectsContent">
-                <div class="effect-group">
-                    <h3>Pitch 조절</h3>
-                    <div style="margin-bottom: 10px;">
-                        <label for="pitchQuality">알고리즘 품질:</label>
-                        <select id="pitchQuality">
-                            <option value="external" selected>External (SoundTouch) - 권장</option>
-                            <option value="high">High Quality (Phase Vocoder) - 최고 품질</option>
-                            <option value="fast">Fast (Simple Resampling) - 빠름</option>
+                <div class="sidebar-content">
+                    <!-- Pitch 조절 -->
+                    <div class="effect-section">
+                        <div class="effect-header">
+                            <label>🎵 Pitch</label>
+                            <span id="pitchValue" class="value-display">0</span>
+                        </div>
+                        <input type="range" id="pitchShift" class="slider" min="-12" max="12" value="0" step="0.5">
+                        <select id="pitchQuality" class="algo-select">
+                            <option value="soundtouch" selected>SoundTouch</option>
+                            <option value="rubberband">RubberBand</option>
                         </select>
-                        <span id="currentQuality" style="margin-left: 10px; font-size: 12px; color: #666;"></span>
                     </div>
-                    <label for="pitchShift">Pitch Shift (반음): <span id="pitchValue">0</span></label>
-                    <input type="range" id="pitchShift" min="-12" max="12" value="0" step="0.5">
-                    <button id="resetPitch" class="btn btn-secondary" style="margin-top: 8px;">초기화</button>
-                </div>
 
-                <div class="effect-group">
-                    <h3>Time Stretch</h3>
-                    <div style="margin-bottom: 10px;">
-                        <label for="timeStretchQuality">알고리즘 품질:</label>
-                        <select id="timeStretchQuality">
-                            <option value="rubberband">RubberBand - 최고 품질 (느림, GPL)</option>
-                            <option value="phase-vocoder">Phase Vocoder - 매우 높은 품질</option>
-                            <option value="external" selected>External (SoundTouch) - 권장</option>
-                            <option value="high">High Quality (WSOLA) - 고품질</option>
-                            <option value="fast">Fast (Frame Manipulation) - 빠름</option>
+                    <!-- Time Stretch -->
+                    <div class="effect-section">
+                        <div class="effect-header">
+                            <label>⏱️ Speed</label>
+                            <span id="timeValue" class="value-display">1.0x</span>
+                        </div>
+                        <input type="range" id="timeStretch" class="slider" min="0.5" max="2.0" value="1.0" step="0.1">
+                        <select id="timeStretchQuality" class="algo-select">
+                            <option value="wsola">WSOLA</option>
+                            <option value="soundtouch" selected>SoundTouch</option>
+                            <option value="rubberband">RubberBand</option>
                         </select>
-                        <span id="currentTimeStretchQuality"
-                            style="margin-left: 10px; font-size: 12px; color: #666;"></span>
                     </div>
-                    <label for="timeStretch">Speed (배속): <span id="timeValue">1.0</span></label>
-                    <input type="range" id="timeStretch" min="0.5" max="2.0" value="1.0" step="0.1">
-                    <button id="resetTimeStretch" class="btn btn-secondary" style="margin-top: 8px;">초기화</button>
+
+                    <!-- Filter -->
+                    <div class="effect-section">
+                        <div class="effect-header">
+                            <label>🎛️ Filter</label>
+                        </div>
+                        <select id="filterType" class="filter-select">
+                            <option value="none" selected>없음</option>
+                            <option value="0">Low Pass</option>
+                            <option value="1">High Pass</option>
+                            <option value="2">Band Pass</option>
+                            <option value="3">Robot</option>
+                            <option value="4">Echo</option>
+                            <option value="5">Reverb</option>
+                        </select>
+                        <div id="filterParams" class="filter-params hidden">
+                            <input type="range" id="filterParam1" class="slider small" min="0" max="1" value="0.5" step="0.05">
+                            <input type="range" id="filterParam2" class="slider small" min="0" max="1" value="0.5" step="0.05">
+                        </div>
+                    </div>
+
+                    <!-- 역재생 -->
+                    <div class="effect-section compact">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="reversePlayback">
+                            <span>🔄 역재생</span>
+                        </label>
+                    </div>
                 </div>
 
-                <div class="effect-group">
-                    <h3>음성 필터</h3>
-                    <select id="filterType">
-                        <option value="none" selected>없음 (필터 적용 안 함)</option>
-                        <option value="0">Low Pass</option>
-                        <option value="1">High Pass</option>
-                        <option value="2">Band Pass</option>
-                        <option value="3">Robot</option>
-                        <option value="4">Echo</option>
-                        <option value="5">Reverb</option>
-                    </select>
-                    <label for="filterParam1">Parameter 1: <span id="param1Value">0.5</span></label>
-                    <input type="range" id="filterParam1" min="0" max="1" value="0.5" step="0.05">
-                    <label for="filterParam2">Parameter 2: <span id="param2Value">0.5</span></label>
-                    <input type="range" id="filterParam2" min="0" max="1" value="0.5" step="0.05">
-                    <button id="resetFilter" class="btn btn-secondary" style="margin-top: 8px;">초기화</button>
+                <!-- 액션 버튼 -->
+                <div class="sidebar-actions">
+                    <button id="applyAllEffects" class="btn-primary" disabled>
+                        <span class="icon">✨</span> Generate
+                    </button>
+                    <div class="playback-controls">
+                        <button id="playProcessed" class="btn-icon" title="재생" disabled>▶</button>
+                        <button id="stopProcessed" class="btn-icon" title="정지" disabled>⏹</button>
+                        <button id="downloadProcessed" class="btn-icon" title="다운로드" disabled>⬇</button>
+                    </div>
                 </div>
 
-                <div style="margin-top: 24px; text-align: center;">
-                    <button id="applyAllEffects" class="btn btn-primary" style="padding: 12px 32px; font-size: 16px;"
-                        disabled>효과 적용</button>
+                <!-- 상태 표시 -->
+                <div class="sidebar-status">
+                    <span id="statusText">준비</span>
                 </div>
-            </div>
-
-            <div class="effect-group">
-                <h3>역재생</h3>
-                <button id="applyReverse" class="btn btn-primary" disabled>역재생 적용</button>
-            </div>
-        </section>
-
-        <!-- 재생 및 다운로드 섹션 -->
-        <section class="card">
-            <h2>4. 결과 재생 및 다운로드</h2>
-            <div class="controls">
-                <button id="playProcessed" class="btn btn-success" disabled>변조된 음성 재생</button>
-                <button id="downloadProcessed" class="btn btn-success" disabled>변조된 음성 다운로드</button>
-                <button id="reset" class="btn btn-warning">초기화</button>
-            </div>
-        </section>
+            </aside>
+        </main>
     </div>
 
     <script src="main.js"></script>
     <script type="module">
-        console.log('Script started');
-
         // Module 함수를 호출하여 WASM 인스턴스 생성
         async function initializeWasm() {
             console.log('Initializing WASM...');
-            console.log('Module type:', typeof Module);
-
-            // Module()을 호출하여 실제 모듈 인스턴스 생성
             const moduleInstance = await Module({
                 onRuntimeInitialized() {
                     console.log('WASM Runtime initialized!');
                 }
             });
-
-            console.log('Module instance created:', moduleInstance);
-            window.Module = moduleInstance; // 전역으로 설정
-
+            window.Module = moduleInstance;
             return moduleInstance;
         }
 
         // WASM 초기화 후 UIController 로드
         initializeWasm().then((moduleInstance) => {
             console.log('Module ready, loading UI Controller...');
-
             import('./js/ui-controller.js').then(controllerModule => {
-                console.log('UI Controller module loaded');
                 const app = new controllerModule.UIController();
-                window.app = app; // 전역으로 저장
-                console.log('UIController instance created and stored globally');
+                window.app = app;
                 app.init();
             }).catch(err => {
                 console.error('UI Controller loading error:', err);
@@ -246,5 +162,4 @@
         });
     </script>
 </body>
-
 </html>

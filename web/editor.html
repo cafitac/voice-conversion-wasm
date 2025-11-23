@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>인터랙티브 편집 - 전체 화면</title>
+    <title>음성 분석 - 전체 화면</title>
     <link rel="stylesheet" href="css/editor.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
@@ -13,11 +13,7 @@
         <header class="editor-header">
             <div class="header-left">
                 <button id="backBtn" class="btn-back">← 메인으로 돌아가기</button>
-                <h1>인터랙티브 편집</h1>
-            </div>
-            <div class="header-right">
-                <button id="resetEdit" class="btn btn-warning">편집 초기화</button>
-                <button id="applyEdit" class="btn btn-success">편집 적용</button>
+                <h1>음성 분석</h1>
             </div>
         </header>
 
@@ -29,12 +25,6 @@
         <!-- 푸터 정보 -->
         <footer class="editor-footer">
             <div class="edit-instructions">
-                <div class="instruction-item">
-                    <strong>Pitch 편집:</strong> 파란 점을 위/아래로 드래그하여 반음 조정
-                </div>
-                <div class="instruction-item">
-                    <strong>Duration 편집:</strong> 브러시로 구간을 선택하고 ratio 입력 (1.5=느리게, 0.5=빠르게)
-                </div>
                 <div class="instruction-item">
                     <strong>확대/축소:</strong> 마우스 휠 사용
                 </div>
@@ -110,21 +100,6 @@
 
             // 버튼 이벤트 리스너
             document.getElementById('backBtn').addEventListener('click', () => {
-                // 현재 편집 데이터 저장
-                saveEditData(editor, editData.pipeline);
-                window.location.href = 'index.html';
-            });
-
-            document.getElementById('resetEdit').addEventListener('click', () => {
-                if (confirm('모든 편집 내용을 초기화하시겠습니까?')) {
-                    editor.reset();
-                }
-            });
-
-            document.getElementById('applyEdit').addEventListener('click', () => {
-                // 편집 데이터 저장
-                saveEditData(editor, editData.pipeline);
-                alert('편집 내용이 저장되었습니다. 메인 페이지에서 적용하세요.');
                 window.location.href = 'index.html';
             });
         }).catch(err => {
