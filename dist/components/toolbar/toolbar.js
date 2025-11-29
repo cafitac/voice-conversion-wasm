@@ -4,10 +4,10 @@
  */
 export class Toolbar {
     constructor(options = {}) {
-        this.onRecord = options.onRecord || (() => { });
-        this.onStopRecord = options.onStopRecord || (() => { });
-        this.onFileUpload = options.onFileUpload || (() => { });
-        this.onPlayOriginal = options.onPlayOriginal || (() => { });
+        this.onRecord = options.onRecord || (() => {});
+        this.onStopRecord = options.onStopRecord || (() => {});
+        this.onFileUpload = options.onFileUpload || (() => {});
+        this.onPlayOriginal = options.onPlayOriginal || (() => {});
 
         this.isRecording = false;
         this.hasAudio = false;
