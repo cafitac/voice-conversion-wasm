@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
+
 <body>
     <div class="app-container">
         <!-- 상단 툴바 -->
@@ -31,7 +33,8 @@
                 <button id="playOriginal" class="icon-btn" title="원본 재생" disabled>
                     <span class="icon">▶</span>
                 </button>
-                <a href="benchmark/comprehensive_benchmark_report.html" target="_blank" class="benchmark-link" title="벤치마크">
+                <a href="benchmark/comprehensive_benchmark_report.html" target="_blank" class="benchmark-link"
+                    title="벤치마크">
                     📊
                 </a>
             </div>
@@ -96,10 +99,17 @@
                             <option value="3">🤖 로봇 목소리</option>
                             <option value="4">🌊 메아리 (Echo)</option>
                             <option value="5">🏛 잔향 (Reverb)</option>
+                            <option value="6">🎸 기타 앰프 (왜곡 효과)</option>
+                            <option value="7">📻 AM 라디오 (노이즈 + 대역 제한)</option>
+                            <option value="8">🎵 합창 효과 (Chorus)</option>
+                            <option value="9">🌊 플랜저 (Flanger)</option>
                         </select>
                         <div id="filterParams" class="filter-params hidden">
-                            <input type="range" id="filterParam1" class="slider small" min="0" max="1" value="0.5" step="0.05">
-                            <input type="range" id="filterParam2" class="slider small" min="0" max="1" value="0.5" step="0.05">
+                            <input type="range" id="filterParam1" class="slider small" min="0" max="1" value="0.5"
+                                step="0.05">
+                            <input type="range" id="filterParam2" class="slider small" min="0" max="1" value="0.5"
+                                step="0.05">
+                            <div id="filterHelpText" class="filter-help-text"></div>
                         </div>
                     </div>
 
@@ -161,4 +171,5 @@
         });
     </script>
 </body>
+
 </html>
