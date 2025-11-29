@@ -32,11 +32,12 @@ export class Sidebar {
             timeValue: document.getElementById('timeValue'),
             timeStretchQuality: document.getElementById('timeStretchQuality'),
 
-            // Filter controls
-            filterType: document.getElementById('filterType'),
-            filterParams: document.getElementById('filterParams'),
-            filterParam1: document.getElementById('filterParam1'),
-            filterParam2: document.getElementById('filterParam2'),
+        // Filter controls
+        filterType: document.getElementById('filterType'),
+        filterParams: document.getElementById('filterParams'),
+        filterParam1: document.getElementById('filterParam1'),
+        filterParam2: document.getElementById('filterParam2'),
+        filterHelpText: document.getElementById('filterHelpText'),
 
             // Reverse
             reversePlayback: document.getElementById('reversePlayback'),
@@ -53,6 +54,10 @@ export class Sidebar {
 
         this.bindEvents();
         this.updateUI();
+        // 초기 필터 설명 업데이트
+        if (this.elements.filterType) {
+            this.updateFilterHelpText(this.elements.filterType.value);
+        }
     }
 
     bindEvents() {
@@ -83,7 +88,9 @@ export class Sidebar {
         // Filter type change
         if (filterType) {
             filterType.addEventListener('change', (e) => {
-                this.toggleFilterParams(e.target.value !== 'none');
+                const filterValue = e.target.value;
+                this.toggleFilterParams(filterValue !== 'none');
+                this.updateFilterHelpText(filterValue);
                 this.onEffectChange(this.getEffectValues());
             });
         }
@@ -147,6 +154,54 @@ export class Sidebar {
     toggleFilterParams(show) {
         if (this.elements.filterParams) {
             this.elements.filterParams.classList.toggle('hidden', !show);
+        }
+    }
+
+    updateFilterHelpText(filterType) {
+        if (!this.elements.filterHelpText) return;
+
+        const helpTexts = {
+            '0': {
+                title: 'Low Pass',
+                param1: '1번 슬라이더: 저음(둔탁함) 양 조절',
+                param2: '2번 슬라이더: 고음 잘려나가는 정도 (값이 클수록 더 먹먹함)'
+            },
+            '1': {
+                title: 'High Pass',
+                param1: '1번 슬라이더: 어느 지점부터 저음을 잘라낼지 (값이 클수록 더 얇은 소리)',
+                param2: '2번 슬라이더: 남은 고음의 강도 / 선명도'
+            },
+            '2': {
+                title: 'Band Pass',
+                param1: '1번 슬라이더: 남길 대역의 아래쪽(저역) 위치',
+                param2: '2번 슬라이더: 남길 대역의 위쪽(고역) 위치'
+            },
+            '3': {
+                title: 'Robot',
+                param1: '1번 슬라이더: (현재 버전에서는 사용하지 않음)',
+                param2: '2번 슬라이더: (현재 버전에서는 사용하지 않음)'
+            },
+            '4': {
+                title: 'Echo',
+                param1: '1번 슬라이더: 메아리 간격 (값이 클수록 더 느리게 울림)',
+                param2: '2번 슬라이더: 메아리 세기 (값이 클수록 뒤에 오는 메아리가 더 크게 남음)'
+            },
+            '5': {
+                title: 'Reverb',
+                param1: '1번 슬라이더: 공간 크기 / 잔향 길이',
+                param2: '2번 슬라이더: 벽 흡음 정도 (값이 작을수록 잔향이 오래 남음)'
+            }
+        };
+
+        const help = helpTexts[filterType];
+        if (help) {
+            this.elements.filterHelpText.innerHTML = `
+                <div><strong>${help.title}</strong> 선택 시</div>
+                <div>• ${help.param1}</div>
+                <div>• ${help.param2}</div>
+            `;
+        } else {
+            this.elements.filterHelpText.innerHTML = '';
         }
     }
 
@@ -268,6 +323,7 @@ export class Sidebar {
         if (this.elements.filterType) {
             this.elements.filterType.value = 'none';
             this.toggleFilterParams(false);
+            this.updateFilterHelpText('none');
         }
 
         // Reset reverse
