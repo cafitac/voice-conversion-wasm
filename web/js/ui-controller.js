@@ -105,10 +105,30 @@ export class UIController {
 
         try {
             await this.recorder.startRecording();
+
+            // 실제로 녹음이 시작된 시점에서 확실히 UI를 녹음 상태로 맞춰줌
+            this.toolbar?.setRecordingState(true);
         } catch (error) {
             console.error('Recording failed:', error);
-            this.sidebar?.setStatus('Microphone access denied');
-            alert('Microphone permission is required.\n\nPlease allow microphone access in your browser settings.');
+
+            // 권한 관련 에러인지 판별
+            const message = error?.message || '';
+            const name = error?.name || '';
+            const isPermissionError =
+                name === 'NotAllowedError' ||
+                name === 'SecurityError' ||
+                message.includes('권한') ||
+                message.toLowerCase().includes('permission');
+
+            // 실패했으므로 UI도 다시 녹음 전 상태로 돌림
+            this.toolbar?.setRecordingState(false);
+
+            if (isPermissionError) {
+                this.sidebar?.setStatus('Microphone access denied');
+                this.showModal('마이크 권한이 필요합니다.\n\n브라우저 설정에서 마이크 접근을 허용해 주세요.');
+            } else {
+                this.sidebar?.setStatus('Recording failed');
+            }
         }
     }
 
@@ -345,6 +365,75 @@ export class UIController {
             reversed[i] = audioData[audioData.length - 1 - i];
         }
         return reversed;
+    }
+
+    // 간단한 인앱 모달 표시 헬퍼
+    showModal(message) {
+        let overlay = document.getElementById('app-modal-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'app-modal-overlay';
+            overlay.style.position = 'fixed';
+            overlay.style.inset = '0';
+            overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.style.zIndex = '9999';
+
+            const modal = document.createElement('div');
+            modal.id = 'app-modal';
+            modal.style.backgroundColor = 'var(--bg-secondary, #252526)';
+            modal.style.color = 'var(--text-primary, #cccccc)';
+            modal.style.border = '1px solid var(--border-color, #3e3e42)';
+            modal.style.borderRadius = '8px';
+            modal.style.padding = '20px 24px';
+            modal.style.minWidth = '260px';
+            modal.style.maxWidth = '360px';
+            modal.style.boxShadow = '0 12px 30px rgba(0, 0, 0, 0.6)';
+
+            const textEl = document.createElement('div');
+            textEl.id = 'app-modal-text';
+            textEl.style.whiteSpace = 'pre-line';
+            textEl.style.fontSize = '14px';
+            textEl.style.marginBottom = '16px';
+
+            const buttonRow = document.createElement('div');
+            buttonRow.style.display = 'flex';
+            buttonRow.style.justifyContent = 'flex-end';
+
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '확인';
+            closeBtn.style.backgroundColor = 'var(--accent-color, #0078d4)';
+            closeBtn.style.color = '#ffffff';
+            closeBtn.style.border = 'none';
+            closeBtn.style.borderRadius = '4px';
+            closeBtn.style.padding = '6px 14px';
+            closeBtn.style.cursor = 'pointer';
+            closeBtn.style.fontSize = '13px';
+
+            const hide = () => {
+                overlay.style.display = 'none';
+            };
+
+            closeBtn.addEventListener('click', hide);
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) hide();
+            });
+
+            buttonRow.appendChild(closeBtn);
+            modal.appendChild(textEl);
+            modal.appendChild(buttonRow);
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+        }
+
+        const textEl = document.getElementById('app-modal-text');
+        if (textEl) {
+            textEl.textContent = message;
+        }
+
+        overlay.style.display = 'flex';
     }
 
     // ==================== Playback ====================

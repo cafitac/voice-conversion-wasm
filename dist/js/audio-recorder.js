@@ -6,6 +6,8 @@ export class AudioRecorder {
         this.processor = null;
         this.isRecording = false;
         this.recordedBuffer = null;
+        this.chunks = [];
+        this.sampleRate = 48000;
     }
 
     async init() {
@@ -41,7 +43,8 @@ export class AudioRecorder {
         }
 
         this.isRecording = true;
-        this.module.startRecording();
+        this.chunks = [];
+        this.sampleRate = this.audioContext.sampleRate || 48000;
 
         const source = this.audioContext.createMediaStreamSource(this.mediaStream);
 
@@ -52,7 +55,8 @@ export class AudioRecorder {
         this.processor.onaudioprocess = (event) => {
             if (this.isRecording) {
                 const inputData = event.inputBuffer.getChannelData(0);
-                this.sendToWasm(inputData);
+                // 입력 데이터를 복사해서 로컬 버퍼에 쌓아 둠
+                this.chunks.push(new Float32Array(inputData));
             }
         };
 
@@ -60,29 +64,26 @@ export class AudioRecorder {
         this.processor.connect(this.audioContext.destination);
     }
 
-    sendToWasm(audioData) {
-        // Float32Array를 WASM 메모리에 복사
-        const dataPtr = this.module._malloc(audioData.length * 4);
-        this.module.HEAPF32.set(audioData, dataPtr / 4);
-
-        this.module.addAudioData(dataPtr, audioData.length);
-        this.module._free(dataPtr);
-    }
-
     stopRecording() {
         this.isRecording = false;
-        this.module.stopRecording();
 
         if (this.processor) {
             this.processor.disconnect();
             this.processor = null;
         }
 
-        // 녹음된 데이터 가져오기
-        const wavData = this.module.getRecordedAudioAsWav();
-
-        if (wavData) {
-            this.recordedBuffer = new Uint8Array(wavData);
+        // JS 측에서 쌓아 둔 Float32Array 조각들을 하나로 병합
+        if (this.chunks.length > 0) {
+            const totalLength = this.chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+            const result = new Float32Array(totalLength);
+            let offset = 0;
+            for (const chunk of this.chunks) {
+                result.set(chunk, offset);
+                offset += chunk.length;
+            }
+            this.recordedBuffer = result;
+        } else {
+            this.recordedBuffer = null;
         }
 
         return this.recordedBuffer;

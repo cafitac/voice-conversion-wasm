@@ -65,6 +65,12 @@ export class Toolbar {
         this.onStopRecord();
     }
 
+    // 외부에서 UI만 녹음 상태로/해제로 바꿀 때 사용 (콜백은 호출 안 함)
+    setRecordingState(isRecording) {
+        this.isRecording = isRecording;
+        this.updateUI();
+    }
+
     handleFileUpload(event) {
         const file = event.target.files[0];
         if (!file) return;

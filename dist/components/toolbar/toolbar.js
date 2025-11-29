@@ -4,10 +4,10 @@
  */
 export class Toolbar {
     constructor(options = {}) {
-        this.onRecord = options.onRecord || (() => {});
-        this.onStopRecord = options.onStopRecord || (() => {});
-        this.onFileUpload = options.onFileUpload || (() => {});
-        this.onPlayOriginal = options.onPlayOriginal || (() => {});
+        this.onRecord = options.onRecord || (() => { });
+        this.onStopRecord = options.onStopRecord || (() => { });
+        this.onFileUpload = options.onFileUpload || (() => { });
+        this.onPlayOriginal = options.onPlayOriginal || (() => { });
 
         this.isRecording = false;
         this.hasAudio = false;
@@ -63,6 +63,12 @@ export class Toolbar {
         this.isRecording = false;
         this.updateUI();
         this.onStopRecord();
+    }
+
+    // 외부에서 UI만 녹음 상태로/해제로 바꿀 때 사용 (콜백은 호출 안 함)
+    setRecordingState(isRecording) {
+        this.isRecording = isRecording;
+        this.updateUI();
     }
 
     handleFileUpload(event) {
