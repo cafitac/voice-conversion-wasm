@@ -14,15 +14,41 @@ AudioBuffer VoiceFilter::applyFilter(const AudioBuffer& input, FilterType type, 
     
     AudioBuffer result;
     switch (type) {
-        case FilterType::LOW_PASS:
-            result = applyLowPass(input, param1 * 5000.0f + 500.0f);
+        case FilterType::LOW_PASS: {
+            // 🐻 곰: 아주 낮은 저음 위주 (굵고 둔한 느낌)
+            // param1: 0.0 ~ 1.0 -> 약 120Hz ~ 400Hz
+            float minCut = 120.0f;
+            float maxCut = 400.0f;
+            float cutoff = minCut + (maxCut - minCut) * std::clamp(param1, 0.0f, 1.0f);
+            result = applyLowPass(input, cutoff);
             break;
-        case FilterType::HIGH_PASS:
-            result = applyHighPass(input, param1 * 3000.0f + 100.0f);
+        }
+        case FilterType::HIGH_PASS: {
+            // 🐰 토끼: 아주 높은 고음 위주 (얇고 날카로운 느낌)
+            // param1: 0.0 ~ 1.0 -> 약 2500Hz ~ 6000Hz
+            float minCut = 2500.0f;
+            float maxCut = 6000.0f;
+            float cutoff = minCut + (maxCut - minCut) * std::clamp(param1, 0.0f, 1.0f);
+            result = applyHighPass(input, cutoff);
             break;
-        case FilterType::BAND_PASS:
-            result = applyBandPass(input, param1 * 2000.0f + 200.0f, param2 * 3000.0f + 1000.0f);
+        }
+        case FilterType::BAND_PASS: {
+            // 📻 라디오: 사람 목소리 대역만 남기는 느낌 (전화기/라디오 톤)
+            // lowCutoff:  ~300Hz, highCutoff: ~3kHz 근처를 기본값으로 두고 param으로 미세 조정
+            float baseLow = 300.0f;
+            float baseHigh = 3000.0f;
+            // param1: 저역 쪽 보정 (0.5를 기준으로 ±150Hz)
+            float lowOffset = (std::clamp(param1, 0.0f, 1.0f) - 0.5f) * 300.0f;
+            // param2: 고역 쪽 보정 (0.5를 기준으로 ±800Hz)
+            float highOffset = (std::clamp(param2, 0.0f, 1.0f) - 0.5f) * 1600.0f;
+            float lowCutoff = std::max(80.0f, baseLow + lowOffset);
+            float highCutoff = std::min(6000.0f, baseHigh + highOffset);
+            if (highCutoff <= lowCutoff + 100.0f) {
+                highCutoff = lowCutoff + 100.0f;
+            }
+            result = applyBandPass(input, lowCutoff, highCutoff);
             break;
+        }
         case FilterType::ROBOT:
             result = applyRobot(input);
             break;
