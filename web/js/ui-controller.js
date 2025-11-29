@@ -384,11 +384,20 @@ export class UIController {
     }
 
     reverseAudio(audioData) {
-        const reversed = new Float32Array(audioData.length);
-        for (let i = 0; i < audioData.length; i++) {
-            reversed[i] = audioData[audioData.length - 1 - i];
+        const length = audioData.length;
+        const ptr = this.module._malloc(length * 4);
+        this.module.HEAPF32.set(audioData, ptr >> 2);
+
+        // Call WASM function (returns Float32Array directly)
+        const result = this.module.reverseAudio(ptr, length, this.sampleRate);
+
+        this.module._free(ptr);
+
+        // Convert to Float32Array if needed
+        if (result instanceof Float32Array) {
+            return result;
         }
-        return reversed;
+        return new Float32Array(result);
     }
 
     // 간단한 인앱 모달 표시 헬퍼

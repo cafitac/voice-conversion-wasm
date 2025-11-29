@@ -26,6 +26,7 @@ CPP_FILES=(
     "src/audio/AudioPreprocessor.cpp"
     "src/analysis/PitchAnalyzer.cpp"
     "src/effects/VoiceFilter.cpp"
+    "src/effects/AudioReverser.cpp"
     # SoundTouch 라이브러리 (핵심 파일만)
     "src/external/soundtouch/source/SoundTouch/SoundTouch.cpp"
     "src/external/soundtouch/source/SoundTouch/FIFOSampleBuffer.cpp"

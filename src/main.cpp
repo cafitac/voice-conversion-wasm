@@ -5,6 +5,7 @@
 #include "audio/AudioBuffer.h"
 #include "analysis/PitchAnalyzer.h"
 #include "effects/VoiceFilter.h"
+#include "effects/AudioReverser.h"
 
 // 외부 라이브러리 직접 사용을 위한 헤더
 #include <SoundTouch.h>
@@ -255,6 +256,28 @@ val applyVoiceFilter(uintptr_t dataPtr,
   return val(typed_memory_view(resultData.size(), resultData.data()));
 }
 
+// 오디오 역재생
+val reverseAudio(uintptr_t dataPtr, int length, int sampleRate) {
+  float *data = reinterpret_cast<float *>(dataPtr);
+  std::vector<float> samples(data, data + length);
+
+  AudioBuffer buffer(sampleRate, 1);
+  buffer.setData(samples);
+
+  AudioReverser reverser;
+  AudioBuffer result = reverser.reverse(buffer);
+
+  // Float32Array로 변환하여 반환
+  const auto& resultData = result.getData();
+  val outputArray = val::global("Float32Array").new_(resultData.size());
+
+  for (size_t i = 0; i < resultData.size(); ++i) {
+    outputArray.set(i, resultData[i]);
+  }
+
+  return outputArray;
+}
+
 // Emscripten 바인딩
 EMSCRIPTEN_BINDINGS(audio_module) {
   // 초기화
@@ -267,6 +290,7 @@ EMSCRIPTEN_BINDINGS(audio_module) {
   function("applyUniformPitchShift", &applyUniformPitchShift);
   function("applyUniformTimeStretch", &applyUniformTimeStretch);
   function("applyVoiceFilter", &applyVoiceFilter);
+  function("reverseAudio", &reverseAudio);
 
   // FilterType enum
   enum_<FilterType>("FilterType")
