@@ -58,6 +58,18 @@ AudioBuffer VoiceFilter::applyFilter(const AudioBuffer& input, FilterType type, 
         case FilterType::REVERB:
             result = applyReverb(input, param1, param2);
             break;
+        case FilterType::DISTORTION:
+            result = applyDistortion(input, param1, param2);
+            break;
+        case FilterType::AM_RADIO:
+            result = applyAMRadio(input, param1, param2);
+            break;
+        case FilterType::CHORUS:
+            result = applyChorus(input, param1, param2);
+            break;
+        case FilterType::FLANGER:
+            result = applyFlanger(input, param1, param2);
+            break;
         default:
             return input;
     }
@@ -197,4 +209,156 @@ float VoiceFilter::calculateRMS(const std::vector<float>& data) {
         sum += sample * sample;
     }
     return std::sqrt(sum / data.size());
+}
+
+AudioBuffer VoiceFilter::applyDistortion(const AudioBuffer& input, float drive, float tone) {
+    // 🎸 기타 앰프 같은 왜곡 효과
+    AudioBuffer output = input;
+    auto& data = output.getData();
+    
+    // Drive: 0.0 ~ 1.0 -> 1.0 ~ 10.0 배 증폭
+    float gain = 1.0f + drive * 9.0f;
+    
+    // Tone: 0.0 ~ 1.0 -> 고역 필터 조정 (0.0 = 어둡게, 1.0 = 밝게)
+    float toneCutoff = 2000.0f + tone * 8000.0f;
+    
+    for (size_t i = 0; i < data.size(); ++i) {
+        // 증폭
+        float sample = data[i] * gain;
+        
+        // Soft clipping (tanh 사용)
+        sample = std::tanh(sample);
+        
+        // Tone 조정 (고역 필터)
+        if (i > 0) {
+            float rc = 1.0f / (2.0f * M_PI * toneCutoff);
+            float dt = 1.0f / input.getSampleRate();
+            float alpha = dt / (rc + dt);
+            sample = data[i - 1] + alpha * (sample - data[i - 1]);
+        }
+        
+        data[i] = sample;
+    }
+    
+    return output;
+}
+
+AudioBuffer VoiceFilter::applyAMRadio(const AudioBuffer& input, float noiseLevel, float bandwidth) {
+    // 📻 AM 라디오 느낌: 노이즈 + 대역 제한
+    AudioBuffer output = input;
+    auto& data = output.getData();
+    int sampleRate = input.getSampleRate();
+    
+    // 대역 제한: bandwidth 0.0 ~ 1.0 -> 2000Hz ~ 4000Hz
+    float lowCut = 200.0f;
+    float highCut = 2000.0f + bandwidth * 2000.0f;
+    
+    // Band pass 필터 적용
+    output = applyBandPass(output, lowCut, highCut);
+    data = output.getData();
+    
+    // 노이즈 추가: noiseLevel 0.0 ~ 1.0 -> 0.0 ~ 0.15
+    float noiseAmount = noiseLevel * 0.15f;
+    
+    // 간단한 화이트 노이즈 생성
+    static unsigned int seed = 12345;
+    for (size_t i = 0; i < data.size(); ++i) {
+        // 간단한 랜덤 노이즈
+        seed = seed * 1103515245 + 12345;
+        float noise = ((seed / 2147483648.0f) - 1.0f) * noiseAmount;
+        data[i] += noise;
+        data[i] = std::max(-1.0f, std::min(1.0f, data[i]));
+    }
+    
+    return output;
+}
+
+AudioBuffer VoiceFilter::applyChorus(const AudioBuffer& input, float rate, float depth) {
+    // 🎵 합창 효과: 여러 목소리가 함께 부르는 느낌 (부드럽고 넓은 느낌)
+    AudioBuffer output = input;
+    auto& data = output.getData();
+    int sampleRate = input.getSampleRate();
+    
+    // Rate: 0.0 ~ 1.0 -> 0.1Hz ~ 1.5Hz (느린 변조)
+    float modRate = 0.1f + rate * 1.4f;
+    
+    // Depth: 0.0 ~ 1.0 -> 10ms ~ 30ms 딜레이 (더 긴 딜레이)
+    float minDelay = 0.010f; // 10ms
+    float maxDelay = minDelay + depth * 0.020f; // 최대 30ms
+    int maxDelaySamples = static_cast<int>(maxDelay * sampleRate);
+    
+    std::vector<float> delayLine(maxDelaySamples + 1, 0.0f);
+    int delayIndex = 0;
+    
+    for (size_t i = 0; i < data.size(); ++i) {
+        float t = static_cast<float>(i) / sampleRate;
+        
+        // LFO (Low Frequency Oscillator)로 딜레이 시간 변조
+        float lfo = std::sin(2.0f * M_PI * modRate * t);
+        float delayTime = minDelay + (maxDelay - minDelay) * (0.5f + 0.5f * lfo);
+        int delaySamples = static_cast<int>(delayTime * sampleRate);
+        
+        if (delaySamples > 0 && delaySamples <= maxDelaySamples) {
+            int readIndex = (delayIndex - delaySamples + maxDelaySamples + 1) % (maxDelaySamples + 1);
+            float delayedSample = delayLine[readIndex];
+            
+            // 딜레이된 신호와 원본을 부드럽게 믹스 (피드백 없음)
+            data[i] = data[i] * 0.6f + delayedSample * 0.4f;
+            
+            // 딜레이 라인 업데이트 (피드백 없이 원본만 저장)
+            delayLine[delayIndex] = data[i];
+            delayIndex = (delayIndex + 1) % (maxDelaySamples + 1);
+        } else {
+            delayLine[delayIndex] = data[i];
+            delayIndex = (delayIndex + 1) % (maxDelaySamples + 1);
+        }
+    }
+    
+    return output;
+}
+
+AudioBuffer VoiceFilter::applyFlanger(const AudioBuffer& input, float rate, float depth) {
+    // 🌊 플랜저 효과: "우우우우" 날아다니는 느낌 (날카롭고 빠른 느낌)
+    AudioBuffer output = input;
+    auto& data = output.getData();
+    int sampleRate = input.getSampleRate();
+    
+    // Rate: 0.0 ~ 1.0 -> 0.5Hz ~ 8.0Hz (빠른 변조)
+    float modRate = 0.5f + rate * 7.5f;
+    
+    // Depth: 0.0 ~ 1.0 -> 1ms ~ 12ms 딜레이 (매우 짧은 딜레이)
+    float minDelay = 0.001f; // 1ms
+    float maxDelay = minDelay + depth * 0.011f; // 최대 12ms
+    int maxDelaySamples = static_cast<int>(maxDelay * sampleRate);
+    
+    std::vector<float> delayLine(maxDelaySamples + 1, 0.0f);
+    int delayIndex = 0;
+    
+    for (size_t i = 0; i < data.size(); ++i) {
+        float t = static_cast<float>(i) / sampleRate;
+        
+        // LFO로 딜레이 시간 변조 (더 빠르고 날카롭게)
+        float lfo = std::sin(2.0f * M_PI * modRate * t);
+        float delayTime = minDelay + (maxDelay - minDelay) * (0.5f + 0.5f * lfo);
+        int delaySamples = static_cast<int>(delayTime * sampleRate);
+        
+        if (delaySamples > 0 && delaySamples <= maxDelaySamples) {
+            int readIndex = (delayIndex - delaySamples + maxDelaySamples + 1) % (maxDelaySamples + 1);
+            float delayedSample = delayLine[readIndex];
+            
+            // 피드백과 믹스 (피드백이 있어서 더 날카로운 느낌)
+            float feedbackAmount = 0.4f; // 피드백 강도
+            data[i] = data[i] + delayedSample * feedbackAmount;
+            data[i] = std::max(-1.0f, std::min(1.0f, data[i]));
+            
+            // 딜레이 라인 업데이트 (피드백 포함)
+            delayLine[delayIndex] = data[i] * 0.6f; // 피드백 감쇠
+            delayIndex = (delayIndex + 1) % (maxDelaySamples + 1);
+        } else {
+            delayLine[delayIndex] = data[i];
+            delayIndex = (delayIndex + 1) % (maxDelaySamples + 1);
+        }
+    }
+    
+    return output;
 }

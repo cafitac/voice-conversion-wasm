@@ -9,7 +9,11 @@ enum class FilterType {
     BAND_PASS,
     ROBOT,
     ECHO,
-    REVERB
+    REVERB,
+    DISTORTION,
+    AM_RADIO,
+    CHORUS,
+    FLANGER
 };
 
 class VoiceFilter {
@@ -27,6 +31,10 @@ public:
     AudioBuffer applyRobot(const AudioBuffer& input);
     AudioBuffer applyEcho(const AudioBuffer& input, float delay, float feedback);
     AudioBuffer applyReverb(const AudioBuffer& input, float roomSize, float damping);
+    AudioBuffer applyDistortion(const AudioBuffer& input, float drive, float tone);
+    AudioBuffer applyAMRadio(const AudioBuffer& input, float noiseLevel, float bandwidth);
+    AudioBuffer applyChorus(const AudioBuffer& input, float rate, float depth);
+    AudioBuffer applyFlanger(const AudioBuffer& input, float rate, float depth);
 
 private:
     // 간단한 필터 구현

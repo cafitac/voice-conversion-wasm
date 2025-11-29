@@ -275,5 +275,9 @@ EMSCRIPTEN_BINDINGS(audio_module) {
       .value("BAND_PASS", FilterType::BAND_PASS)
       .value("ROBOT", FilterType::ROBOT)
       .value("ECHO", FilterType::ECHO)
-      .value("REVERB", FilterType::REVERB);
+      .value("REVERB", FilterType::REVERB)
+      .value("DISTORTION", FilterType::DISTORTION)
+      .value("AM_RADIO", FilterType::AM_RADIO)
+      .value("CHORUS", FilterType::CHORUS)
+      .value("FLANGER", FilterType::FLANGER);
 }
