@@ -193,9 +193,9 @@ export class UIController {
             // Analyze pitch using WASM
             const pitchData = await this.analyzeWithWasm(audioData);
 
-            // Display in chart
+            // Display in chart with "Original" label
             this.chart?.hideLoading();
-            this.chart?.setData(pitchData);
+            this.chart?.setData(pitchData, 'Original');
             this.sidebar?.setStatus('Ready');
         } catch (error) {
             console.error('Pitch analysis failed:', error);
@@ -232,6 +232,27 @@ export class UIController {
         }
 
         return pitchData;
+    }
+
+    async analyzeProcessedAudio() {
+        if (!this.processedAudio) return;
+
+        this.chart?.showLoading('Analyzing processed audio...');
+        this.sidebar?.setStatus('Analyzing processed audio...');
+
+        try {
+            // Analyze pitch using WASM
+            const pitchData = await this.analyzeWithWasm(this.processedAudio);
+
+            // Display in chart with "Processed" label
+            this.chart?.hideLoading();
+            this.chart?.setData(pitchData, 'Processed');
+            this.sidebar?.setStatus('Ready to play');
+        } catch (error) {
+            console.error('Processed audio pitch analysis failed:', error);
+            this.chart?.hideLoading();
+            this.sidebar?.setStatus('Analysis failed');
+        }
     }
 
     // ==================== Effects Processing ====================
@@ -279,6 +300,9 @@ export class UIController {
             this.processedAudio = audioData;
             this.sidebar?.setProcessed(true);
             this.sidebar?.setStatus('Processing complete');
+
+            // Analyze pitch of processed audio and update chart
+            await this.analyzeProcessedAudio();
         } catch (error) {
             console.error('Effects processing failed:', error);
             this.sidebar?.setProcessing(false);

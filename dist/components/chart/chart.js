@@ -16,6 +16,7 @@ export class PitchChart {
 
         this.svg = null;
         this.data = [];
+        this.dataType = null; // 'Original' or 'Processed'
         this.scales = {};
         this.tooltip = null;
 
@@ -62,8 +63,9 @@ export class PitchChart {
         };
     }
 
-    setData(pitchData) {
+    setData(pitchData, dataType = null) {
         this.data = pitchData.filter(d => d.pitch > 0); // Filter out unvoiced frames
+        this.dataType = dataType; // 'Original', 'Processed', or null
         this.render();
     }
 
@@ -235,7 +237,18 @@ export class PitchChart {
 
         const info = document.createElement('div');
         info.className = 'chart-info';
+
+        // Add data type label if available
+        let typeLabel = '';
+        if (this.dataType) {
+            const labelClass = this.dataType === 'Processed' ? 'processed-label' : 'original-label';
+            typeLabel = `<div class="chart-info-item ${labelClass}">
+                <strong>${this.dataType}</strong>
+            </div>`;
+        }
+
         info.innerHTML = `
+            ${typeLabel}
             <div class="chart-info-item">
                 Duration: <span class="chart-info-value">${duration.toFixed(2)}s</span>
             </div>

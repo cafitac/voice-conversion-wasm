@@ -186,6 +186,31 @@
     color: var(--text-secondary);
 }
 
+/* Data Type Labels */
+.chart-info-item.original-label {
+    background: rgba(100, 150, 255, 0.15);
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(100, 150, 255, 0.3);
+}
+
+.chart-info-item.original-label strong {
+    color: #6496ff;
+    font-size: 12px;
+}
+
+.chart-info-item.processed-label {
+    background: rgba(139, 233, 253, 0.15);
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(139, 233, 253, 0.3);
+}
+
+.chart-info-item.processed-label strong {
+    color: #8be9fd;
+    font-size: 12px;
+}
+
 /* Zoom Controls */
 .chart-controls {
     position: absolute;
