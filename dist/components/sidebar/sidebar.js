@@ -4,11 +4,11 @@
  */
 export class Sidebar {
     constructor(options = {}) {
-        this.onApplyEffects = options.onApplyEffects || (() => {});
-        this.onPlayProcessed = options.onPlayProcessed || (() => {});
-        this.onStopProcessed = options.onStopProcessed || (() => {});
-        this.onDownload = options.onDownload || (() => {});
-        this.onEffectChange = options.onEffectChange || (() => {});
+        this.onApplyEffects = options.onApplyEffects || (() => { });
+        this.onPlayProcessed = options.onPlayProcessed || (() => { });
+        this.onStopProcessed = options.onStopProcessed || (() => { });
+        this.onDownload = options.onDownload || (() => { });
+        this.onEffectChange = options.onEffectChange || (() => { });
 
         this.elements = {};
         this.state = {
@@ -32,12 +32,12 @@ export class Sidebar {
             timeValue: document.getElementById('timeValue'),
             timeStretchQuality: document.getElementById('timeStretchQuality'),
 
-        // Filter controls
-        filterType: document.getElementById('filterType'),
-        filterParams: document.getElementById('filterParams'),
-        filterParam1: document.getElementById('filterParam1'),
-        filterParam2: document.getElementById('filterParam2'),
-        filterHelpText: document.getElementById('filterHelpText'),
+            // Filter controls
+            filterType: document.getElementById('filterType'),
+            filterParams: document.getElementById('filterParams'),
+            filterParam1: document.getElementById('filterParam1'),
+            filterParam2: document.getElementById('filterParam2'),
+            filterHelpText: document.getElementById('filterHelpText'),
 
             // Reverse
             reversePlayback: document.getElementById('reversePlayback'),
