@@ -43,6 +43,13 @@
         async function initializeWasm() {
             console.log('Initializing WASM...');
             const moduleInstance = await Module({
+                locateFile(path) {
+                    // WASM 파일 경로를 올바르게 지정
+                    if (path.endsWith('.wasm')) {
+                        return 'main.wasm';
+                    }
+                    return path;
+                },
                 onRuntimeInitialized() {
                     console.log('WASM Runtime initialized!');
                 }

@@ -269,7 +269,8 @@ export class UIController {
         }
 
         this.player.stop();
-        this.sidebar?.setStatus('Processing...');
+        this.sidebar?.setProcessing(true);
+        this.sidebar?.setStatus('🔄 변환 중...');
 
         try {
             // Start with original audio
@@ -279,34 +280,39 @@ export class UIController {
 
             // Apply pitch shift
             if (Math.abs(effects.pitch.semitones) > 0.01) {
+                this.sidebar?.setStatus('🔄 피치 변경 중...');
                 audioData = await this.applyPitchShift(audioData, effects.pitch);
             }
 
             // Apply time stretch
             if (Math.abs(effects.timeStretch.ratio - 1.0) > 0.01) {
+                this.sidebar?.setStatus('🔄 속도 조절 중...');
                 audioData = await this.applyTimeStretch(audioData, effects.timeStretch);
             }
 
             // Apply filter
             if (effects.filter.type !== 'none') {
+                this.sidebar?.setStatus('🔄 필터 적용 중...');
                 audioData = await this.applyFilter(audioData, effects.filter);
             }
 
             // Apply reverse
             if (effects.reverse) {
+                this.sidebar?.setStatus('🔄 역재생 처리 중...');
                 audioData = this.reverseAudio(audioData);
             }
 
+            this.sidebar?.setStatus('🔄 완료 중...');
             this.processedAudio = audioData;
             this.sidebar?.setProcessed(true);
-            this.sidebar?.setStatus('Processing complete');
+            this.sidebar?.setStatus('✓ 변환 완료');
 
             // Analyze pitch of processed audio and update chart
             await this.analyzeProcessedAudio();
         } catch (error) {
             console.error('Effects processing failed:', error);
             this.sidebar?.setProcessing(false);
-            this.sidebar?.setStatus('Processing failed');
+            this.sidebar?.setStatus('❌ 변환 실패');
             alert('Failed to process audio: ' + error.message);
         }
     }

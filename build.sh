@@ -55,6 +55,8 @@ em++ "${CPP_FILES[@]}" \
   -s MODULARIZE=1 \
   -s EXPORT_NAME='Module' \
   -s EXPORT_ES6=0 \
+  -s ENVIRONMENT='web' \
+  -s SINGLE_FILE=0 \
   --bind \
   -O3 \
   -I./src \

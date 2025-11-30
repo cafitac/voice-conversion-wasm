@@ -44,6 +44,7 @@ export class Sidebar {
 
             // Action buttons
             applyAllEffects: document.getElementById('applyAllEffects'),
+            resetEffects: document.getElementById('resetEffects'),
             playProcessed: document.getElementById('playProcessed'),
             stopProcessed: document.getElementById('stopProcessed'),
             downloadProcessed: document.getElementById('downloadProcessed'),
@@ -66,7 +67,7 @@ export class Sidebar {
             timeStretch, timeStretchQuality,
             filterType, filterParam1, filterParam2,
             reversePlayback,
-            applyAllEffects, playProcessed, stopProcessed, downloadProcessed
+            applyAllEffects, resetEffects, playProcessed, stopProcessed, downloadProcessed
         } = this.elements;
 
         // Pitch slider
@@ -123,6 +124,10 @@ export class Sidebar {
         // Action buttons
         if (applyAllEffects) {
             applyAllEffects.addEventListener('click', () => this.applyEffects());
+        }
+
+        if (resetEffects) {
+            resetEffects.addEventListener('click', () => this.resetEffects());
         }
 
         if (playProcessed) {
@@ -207,7 +212,7 @@ export class Sidebar {
                 param2: '2번 슬라이더: 효과 깊이 (값이 클수록 더 강한 플랜저 효과)'
             },
             '10': {
-                title: '📺 뉴스 진행 인터뷰',
+                title: '📺 뉴스 인터뷰 목소리',
                 param1: '1번 슬라이더: 변환 강도 (값이 클수록 더 여성 목소리에 가까워짐)',
                 param2: '2번 슬라이더: (사용하지 않음)'
             },
@@ -273,6 +278,12 @@ export class Sidebar {
     setStatus(text) {
         if (this.elements.statusText) {
             this.elements.statusText.textContent = text;
+            // Add processing class for visual feedback
+            if (this.state.isProcessing) {
+                this.elements.statusText.classList.add('processing-status');
+            } else {
+                this.elements.statusText.classList.remove('processing-status');
+            }
         }
     }
 
@@ -330,6 +341,44 @@ export class Sidebar {
                 this.elements.playProcessed?.classList.remove('highlight');
             }, 2000);
         }
+    }
+
+    resetEffects() {
+        // 필터, 피치, 스피드만 초기화 (오디오는 유지)
+        // Reset pitch
+        if (this.elements.pitchShift) {
+            this.elements.pitchShift.value = 0;
+            this.updatePitchDisplay(0);
+        }
+
+        // Reset time stretch
+        if (this.elements.timeStretch) {
+            this.elements.timeStretch.value = 1.0;
+            this.updateTimeDisplay(1.0);
+        }
+
+        // Reset filter
+        if (this.elements.filterType) {
+            this.elements.filterType.value = 'none';
+            this.toggleFilterParams(false);
+            this.updateFilterHelpText('none');
+        }
+
+        // Reset filter params
+        if (this.elements.filterParam1) {
+            this.elements.filterParam1.value = 0.5;
+        }
+        if (this.elements.filterParam2) {
+            this.elements.filterParam2.value = 0.5;
+        }
+
+        // Reset reverse
+        if (this.elements.reversePlayback) {
+            this.elements.reversePlayback.checked = false;
+        }
+
+        // 효과 변경 알림
+        this.onEffectChange(this.getEffectValues());
     }
 
     reset() {

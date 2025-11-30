@@ -103,7 +103,7 @@
                             <option value="7">📻 AM 라디오 (노이즈 + 대역 제한)</option>
                             <option value="8">🎵 합창 효과 (Chorus)</option>
                             <option value="9">🌊 플랜저 (Flanger)</option>
-                            <option value="10">📺 뉴스 진행 인터뷰</option>
+                            <option value="10">📺 뉴스 인터뷰 목소리</option>
                             <option value="11">🎭 범인 목소리</option>
                         </select>
                         <div id="filterParams" class="filter-params hidden">
@@ -129,6 +129,9 @@
                     <button id="applyAllEffects" class="btn-primary" disabled>
                         <span class="icon">✨</span> Generate
                     </button>
+                    <button id="resetEffects" class="btn-secondary" title="필터, 피치, 스피드 초기화">
+                        <span class="icon">🔄</span> 초기화
+                    </button>
                     <div class="playback-controls">
                         <button id="playProcessed" class="btn-icon" title="재생" disabled>▶</button>
                         <button id="stopProcessed" class="btn-icon" title="정지" disabled>⏹</button>
@@ -150,6 +153,13 @@
         async function initializeWasm() {
             console.log('Initializing WASM...');
             const moduleInstance = await Module({
+                locateFile(path) {
+                    // WASM 파일 경로를 올바르게 지정
+                    if (path.endsWith('.wasm')) {
+                        return 'main.wasm';
+                    }
+                    return path;
+                },
                 onRuntimeInitialized() {
                     console.log('WASM Runtime initialized!');
                 }
