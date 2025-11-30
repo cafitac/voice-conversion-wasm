@@ -1,6 +1,7 @@
 #include "VoiceFilter.h"
 #include <cmath>
 #include <algorithm>
+#include <SoundTouch.h>
 
 VoiceFilter::VoiceFilter() {
 }
@@ -69,6 +70,12 @@ AudioBuffer VoiceFilter::applyFilter(const AudioBuffer& input, FilterType type, 
             break;
         case FilterType::FLANGER:
             result = applyFlanger(input, param1, param2);
+            break;
+        case FilterType::VOICE_CHANGER_MALE_TO_FEMALE:
+            result = applyVoiceChangerMaleToFemale(input, param1);
+            break;
+        case FilterType::VOICE_CHANGER_FEMALE_TO_MALE:
+            result = applyVoiceChangerFemaleToMale(input, param1);
             break;
         default:
             return input;
@@ -361,4 +368,103 @@ AudioBuffer VoiceFilter::applyFlanger(const AudioBuffer& input, float rate, floa
     }
     
     return output;
+}
+
+AudioBuffer VoiceFilter::applyVoiceChangerMaleToFemale(const AudioBuffer& input, float intensity) {
+    // 👨→👩 남자 목소리를 여자 목소리로 변환 (얇은 목소리만 나오도록)
+    // intensity: 0.0 ~ 1.0 -> 피치 시프트 강도 (0 = 변화 없음, 1 = 최대 변환)
+    
+    const auto& inputData = input.getData();
+    int sampleRate = input.getSampleRate();
+    
+    // 피치 시프트: intensity에 따라 +3 ~ +6 semitones (남->여)
+    float pitchShift = 3.0f + intensity * 3.0f; // +3 ~ +6 semitones
+    
+    // SoundTouch 사용
+    soundtouch::SoundTouch st;
+    st.setSampleRate(sampleRate);
+    st.setChannels(1);
+    st.setPitchSemiTones(pitchShift);
+    st.setTempo(1.0f);  // 속도 유지
+    st.setSetting(SETTING_USE_AA_FILTER, 1);
+    st.setSetting(SETTING_AA_FILTER_LENGTH, 64);
+    st.setSetting(SETTING_SEQUENCE_MS, 40);
+    st.setSetting(SETTING_SEEKWINDOW_MS, 15);
+    st.setSetting(SETTING_OVERLAP_MS, 8);
+    
+    // Process
+    std::vector<float> samples(inputData.begin(), inputData.end());
+    st.putSamples(samples.data(), samples.size());
+    st.flush();
+    
+    // Retrieve output
+    std::vector<float> outputData;
+    outputData.resize(samples.size() * 2);  // 여유 공간
+    int received = st.receiveSamples(outputData.data(), outputData.size());
+    outputData.resize(received);
+    
+    AudioBuffer result(sampleRate, 1);
+    result.setData(outputData);
+    
+    // 이중으로 들리지 않도록 블렌드 제거, 피치 시프트만 사용
+    // 약간의 고역 강조로 더 자연스러운 여성 목소리 느낌 (블렌드 없이)
+    if (intensity > 0.5f) {
+        // 고역 통과 필터로 약간 밝게 (원본 블렌드 없이)
+        float highCut = 1500.0f + intensity * 1500.0f;
+        result = applyHighPass(result, highCut);
+    }
+    
+    return result;
+}
+
+AudioBuffer VoiceFilter::applyVoiceChangerFemaleToMale(const AudioBuffer& input, float intensity) {
+    // 🎭 범인 목소리: 얇은 목소리와 낮은 목소리가 2중으로 들려서 수상해 보이게
+    // intensity: 0.0 ~ 1.0 -> 피치 시프트 강도 (0 = 변화 없음, 1 = 최대 변환)
+    
+    const auto& inputData = input.getData();
+    int sampleRate = input.getSampleRate();
+    
+    // 피치 시프트: intensity에 따라 -4 ~ -7 semitones (더 낮게)
+    float pitchShift = -4.0f - intensity * 3.0f; // -4 ~ -7 semitones
+    
+    // SoundTouch 사용
+    soundtouch::SoundTouch st;
+    st.setSampleRate(sampleRate);
+    st.setChannels(1);
+    st.setPitchSemiTones(pitchShift);
+    st.setTempo(1.0f);  // 속도 유지
+    st.setSetting(SETTING_USE_AA_FILTER, 1);
+    st.setSetting(SETTING_AA_FILTER_LENGTH, 64);
+    st.setSetting(SETTING_SEQUENCE_MS, 40);
+    st.setSetting(SETTING_SEEKWINDOW_MS, 15);
+    st.setSetting(SETTING_OVERLAP_MS, 8);
+    
+    // Process
+    std::vector<float> samples(inputData.begin(), inputData.end());
+    st.putSamples(samples.data(), samples.size());
+    st.flush();
+    
+    // Retrieve output
+    std::vector<float> outputData;
+    outputData.resize(samples.size() * 2);  // 여유 공간
+    int received = st.receiveSamples(outputData.data(), outputData.size());
+    outputData.resize(received);
+    
+    AudioBuffer result(sampleRate, 1);
+    result.setData(outputData);
+    
+    // 저역 통과 필터로 범인 목소리 느낌
+    if (intensity > 0.5f) {
+        float lowCut = 600.0f - intensity * 200.0f; // 400Hz ~ 600Hz
+        result = applyLowPass(result, lowCut);
+    }
+    
+    // 이중으로 들리게 하기 위해 원본과 블렌드 (수상해 보이게)
+    auto& resultData = result.getData();
+    for (size_t i = 0; i < std::min(resultData.size(), inputData.size()); ++i) {
+        // 낮은 목소리(변환된 것)와 얇은 목소리(원본)를 함께 믹스
+        resultData[i] = resultData[i] * 0.6f + inputData[i] * 0.4f;
+    }
+    
+    return result;
 }

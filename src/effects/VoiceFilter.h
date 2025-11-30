@@ -13,7 +13,9 @@ enum class FilterType {
     DISTORTION,
     AM_RADIO,
     CHORUS,
-    FLANGER
+    FLANGER,
+    VOICE_CHANGER_MALE_TO_FEMALE,
+    VOICE_CHANGER_FEMALE_TO_MALE
 };
 
 class VoiceFilter {
@@ -35,6 +37,8 @@ public:
     AudioBuffer applyAMRadio(const AudioBuffer& input, float noiseLevel, float bandwidth);
     AudioBuffer applyChorus(const AudioBuffer& input, float rate, float depth);
     AudioBuffer applyFlanger(const AudioBuffer& input, float rate, float depth);
+    AudioBuffer applyVoiceChangerMaleToFemale(const AudioBuffer& input, float intensity);
+    AudioBuffer applyVoiceChangerFemaleToMale(const AudioBuffer& input, float intensity);
 
 private:
     // 간단한 필터 구현

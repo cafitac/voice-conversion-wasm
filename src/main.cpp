@@ -303,5 +303,7 @@ EMSCRIPTEN_BINDINGS(audio_module) {
       .value("DISTORTION", FilterType::DISTORTION)
       .value("AM_RADIO", FilterType::AM_RADIO)
       .value("CHORUS", FilterType::CHORUS)
-      .value("FLANGER", FilterType::FLANGER);
+      .value("FLANGER", FilterType::FLANGER)
+      .value("VOICE_CHANGER_MALE_TO_FEMALE", FilterType::VOICE_CHANGER_MALE_TO_FEMALE)
+      .value("VOICE_CHANGER_FEMALE_TO_MALE", FilterType::VOICE_CHANGER_FEMALE_TO_MALE);
 }
