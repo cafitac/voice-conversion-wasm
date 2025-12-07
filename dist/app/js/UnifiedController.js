@@ -261,15 +261,19 @@ class UnifiedController {
 
     /**
      * 피치 분석
+     * @param {JSAudioBuffer} audio - 분석할 오디오 (기본값: 원본 오디오)
+     * @param {string} label - 상태 메시지 라벨 (기본값: '')
      */
-    async analyzePitch() {
-        if (!this.originalAudio) return;
+    async analyzePitch(audio = null, label = '') {
+        const targetAudio = audio || this.originalAudio;
+        if (!targetAudio) return;
 
-        this.setStatus('피치 분석 중...');
+        const statusMessage = label ? `피치 분석 중 (${label})...` : '피치 분석 중...';
+        this.setStatus(statusMessage);
 
         try {
             // JS 엔진 사용 (C++/JS 모두 동일한 분석 결과 사용)
-            this.pitchData = this.jsPitchAnalyzer.analyze(this.originalAudio);
+            this.pitchData = this.jsPitchAnalyzer.analyze(targetAudio);
             this.visualizePitch();
             this.setStatus('분석 완료');
         } catch (error) {
@@ -404,6 +408,9 @@ class UnifiedController {
 
             // 보고서 목록 업데이트
             this.performanceReport.renderReportList();
+
+            // 변환된 오디오의 피치 분석
+            await this.analyzePitch(this.processedAudio, '변환된 오디오');
 
             this.setStatus('효과 적용 완료 (JS + C++)');
         } catch (error) {
