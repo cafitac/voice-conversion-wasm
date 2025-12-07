@@ -1,9 +1,0 @@
-/* Main Style - Import all component styles */
-
-/* Base styles and variables */
-@import url('./base.css');
-
-/* Component styles */
-@import url('../components/toolbar/toolbar.css');
-@import url('../components/sidebar/sidebar.css');
-@import url('../components/chart/chart.css');

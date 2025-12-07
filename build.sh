@@ -49,7 +49,7 @@ CPP_FILES=(
 
 # 컴파일 (SIMD 및 최적화 옵션 추가)
 em++ "${CPP_FILES[@]}" \
-  -o web/cpp/main.js \
+  -o web/app/main.js \
   -s WASM=1 \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s EXPORTED_FUNCTIONS='["_malloc", "_free"]' \
@@ -73,8 +73,8 @@ if [ $? -eq 0 ]; then
     echo "✓ 빌드 완료!"
     echo ""
     echo "생성된 파일:"
-    echo "  - web/cpp/main.js"
-    echo "  - web/cpp/main.wasm"
+    echo "  - web/app/main.js"
+    echo "  - web/app/main.wasm"
     echo ""
     echo "웹 서버 실행:"
     echo "  ./runserver.sh"

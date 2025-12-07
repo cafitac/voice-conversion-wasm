@@ -53,7 +53,8 @@
       "Bash(git check-ignore:*)",
       "Bash(git ls-tree:*)",
       "Bash(tar:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []
