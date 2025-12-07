@@ -19,6 +19,10 @@ CPP_FILES=(
     "src/analysis/PitchAnalyzer.cpp"
     "src/effects/VoiceFilter.cpp"
     "src/effects/AudioReverser.cpp"
+    "src/performance/PerformanceChecker.cpp"
+    # 직접 구현한 DSP 알고리즘
+    "src/dsp/SimplePitchShifter.cpp"
+    "src/dsp/SimpleTimeStretcher.cpp"
     # SoundTouch 라이브러리 (핵심 파일만)
     "src/external/soundtouch/source/SoundTouch/SoundTouch.cpp"
     "src/external/soundtouch/source/SoundTouch/FIFOSampleBuffer.cpp"
@@ -33,8 +37,6 @@ CPP_FILES=(
     "src/external/soundtouch/source/SoundTouch/cpu_detect_x86.cpp"
     # KissFFT 라이브러리
     "src/external/kissfft/kiss_fft.c"
-    # RubberBand 라이브러리 (Single compilation unit)
-    "src/external/rubberband/single/RubberBandSingle.cpp"
 )
 
 # dist 디렉토리 생성
@@ -59,8 +61,7 @@ em++ "${CPP_FILES[@]}" \
   -I./src \
   -I./src/external/soundtouch/include \
   -I./src/external/soundtouch/source \
-  -I./src/external/kissfft \
-  -I./src/external/rubberband
+  -I./src/external/kissfft
 
 if [ $? -ne 0 ]; then
     echo ""
@@ -74,36 +75,47 @@ echo ""
 
 # web/ 정적 파일 복사
 echo "Copying static files from web/..."
+mkdir -p dist/cpp dist/js dist/app
+
+# 메인 라우팅 페이지
 cp web/index.html dist/
-cp -r web/css dist/
-cp -r web/js dist/
-cp -r web/components dist/
+
+# 통합 앱 (NEW)
+cp web/app/index.html dist/app/
+cp -r web/app/css dist/app/
+cp -r web/app/js dist/app/
+cp -r web/app/components dist/app/ 2>/dev/null || true
+
+# C++ 버전
+cp web/cpp/index.html dist/cpp/
+cp web/cpp/editor.html dist/cpp/ 2>/dev/null || true
+cp -r web/cpp/css dist/cpp/
+cp -r web/cpp/js dist/cpp/
+cp -r web/cpp/components dist/cpp/ 2>/dev/null || true
+
+# JavaScript 버전
+cp web/js/index.html dist/js/
+cp -r web/js/css dist/js/
+cp -r web/js/js dist/js/
+
+# WASM 파일을 C++ 버전과 통합 앱으로 복사
+cp dist/main.js dist/cpp/
+cp dist/main.wasm dist/cpp/
+cp dist/main.js dist/app/
+cp dist/main.wasm dist/app/
 
 echo "✓ Static files copied!"
 echo ""
 
-# benchmark_result 복사 (심볼릭 링크 대신)
-if [ -d "benchmark_result" ]; then
-    echo "Copying benchmark results..."
-    cp -r benchmark_result dist/benchmark
-    echo "✓ Benchmark results copied!"
-else
-    echo "⚠ benchmark_result directory not found, skipping..."
-fi
-
-echo ""
 echo "========================================"
 echo "✓ Distribution build completed!"
 echo "========================================"
 echo ""
 echo "Generated files in dist/:"
-echo "  - dist/main.js"
-echo "  - dist/main.wasm"
-echo "  - dist/index.html"
-echo "  - dist/css/"
-echo "  - dist/js/"
-echo "  - dist/components/"
-echo "  - dist/benchmark/ (if available)"
+echo "  - dist/index.html (메인 라우팅)"
+echo "  - dist/app/ (통합 앱 - C++/JS 토글)"
+echo "  - dist/cpp/ (C++ WASM 버전)"
+echo "  - dist/js/ (JavaScript 버전)"
 echo ""
 echo "Ready for deployment!"
 echo ""

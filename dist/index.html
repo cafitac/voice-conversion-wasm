@@ -1,187 +1,192 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>음성 변조 앱</title>
-    <link rel="stylesheet" href="css/style.css">
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-</head>
-
-<body>
-    <div class="app-container">
-        <!-- 상단 툴바 -->
-        <header class="toolbar">
-            <div class="toolbar-left">
-                <button id="startRecord" class="icon-btn" title="녹음 시작">
-                    <span class="icon">🎤</span>
-                </button>
-                <button id="stopRecord" class="icon-btn recording" title="녹음 중지" disabled>
-                    <span class="icon">⏹</span>
-                </button>
-                <button id="uploadFile" class="icon-btn" title="파일 업로드">
-                    <span class="icon">📁</span>
-                </button>
-                <input type="file" id="fileInput" accept=".wav" style="display: none;">
-                <span id="fileInfo" class="file-info">파일을 선택하세요</span>
-            </div>
-            <div class="toolbar-center">
-                <span class="app-title">음성 변조 앱</span>
-            </div>
-            <div class="toolbar-right">
-                <button id="playOriginal" class="icon-btn" title="원본 재생" disabled>
-                    <span class="icon">▶</span>
-                </button>
-                <a href="benchmark/comprehensive_benchmark_report.html" target="_blank" class="benchmark-link"
-                    title="벤치마크">
-                    📊
-                </a>
-            </div>
-        </header>
-
-        <!-- 메인 컨텐츠 -->
-        <main class="main-content">
-            <!-- 그래프 영역 -->
-            <div class="graph-area">
-                <div id="pitch-chart" class="pitch-chart">
-                    <div class="empty-state">
-                        <div class="empty-icon">🎵</div>
-                        <p>음성 파일을 녹음하거나 업로드하세요</p>
-                        <p class="hint">왼쪽 상단의 🎤 또는 📁 버튼을 클릭</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 오른쪽 사이드바 -->
-            <aside class="sidebar">
-                <div class="sidebar-header">
-                    <span class="sidebar-title">⚙️ 효과</span>
-                </div>
-
-                <div class="sidebar-content">
-                    <!-- Pitch 조절 -->
-                    <div class="effect-section">
-                        <div class="effect-header">
-                            <label>🎵 Pitch</label>
-                            <span id="pitchValue" class="value-display">0</span>
-                        </div>
-                        <input type="range" id="pitchShift" class="slider" min="-12" max="12" value="0" step="0.5">
-                        <select id="pitchQuality" class="algo-select">
-                            <option value="soundtouch" selected>SoundTouch</option>
-                            <option value="rubberband">RubberBand</option>
-                        </select>
-                    </div>
-
-                    <!-- Time Stretch -->
-                    <div class="effect-section">
-                        <div class="effect-header">
-                            <label>⏱️ Speed</label>
-                            <span id="timeValue" class="value-display">1.0x</span>
-                        </div>
-                        <input type="range" id="timeStretch" class="slider" min="0.5" max="2.0" value="1.0" step="0.1">
-                        <select id="timeStretchQuality" class="algo-select">
-                            <option value="wsola">WSOLA</option>
-                            <option value="soundtouch" selected>SoundTouch</option>
-                            <option value="rubberband">RubberBand</option>
-                        </select>
-                    </div>
-
-                    <!-- Filter -->
-                    <div class="effect-section">
-                        <div class="effect-header">
-                            <label>🎛️ Filter</label>
-                        </div>
-                        <select id="filterType" class="filter-select">
-                            <option value="none" selected>없음</option>
-                            <option value="0">☕ 컵 속 목소리 (먹먹하고 답답한 느낌)</option>
-                            <option value="1">📡 무전기 (전화기/무전기 느낌)</option>
-                            <option value="3">🤖 로봇 목소리</option>
-                            <option value="4">🌊 메아리 (Echo)</option>
-                            <option value="5">🏛 잔향 (Reverb)</option>
-                            <option value="6">🎸 기타 앰프 (왜곡 효과)</option>
-                            <option value="7">📻 AM 라디오 (노이즈 + 대역 제한)</option>
-                            <option value="8">🎵 합창 효과 (Chorus)</option>
-                            <option value="9">🌊 플랜저 (Flanger)</option>
-                            <option value="10">📺 뉴스 인터뷰 목소리</option>
-                            <option value="11">🎭 범인 목소리</option>
-                        </select>
-                        <div id="filterParams" class="filter-params hidden">
-                            <input type="range" id="filterParam1" class="slider small" min="0" max="1" value="0.5"
-                                step="0.05">
-                            <input type="range" id="filterParam2" class="slider small" min="0" max="1" value="0.5"
-                                step="0.05">
-                            <div id="filterHelpText" class="filter-help-text"></div>
-                        </div>
-                    </div>
-
-                    <!-- 역재생 -->
-                    <div class="effect-section compact">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="reversePlayback">
-                            <span>🔄 역재생</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- 액션 버튼 -->
-                <div class="sidebar-actions">
-                    <button id="applyAllEffects" class="btn-primary" disabled>
-                        <span class="icon">✨</span> Generate
-                    </button>
-                    <button id="resetEffects" class="btn-secondary" title="필터, 피치, 스피드 초기화">
-                        <span class="icon">🔄</span> 초기화
-                    </button>
-                    <div class="playback-controls">
-                        <button id="playProcessed" class="btn-icon" title="재생" disabled>▶</button>
-                        <button id="stopProcessed" class="btn-icon" title="정지" disabled>⏹</button>
-                        <button id="downloadProcessed" class="btn-icon" title="다운로드" disabled>⬇</button>
-                    </div>
-                </div>
-
-                <!-- 상태 표시 -->
-                <div class="sidebar-status">
-                    <span id="statusText">준비</span>
-                </div>
-            </aside>
-        </main>
-    </div>
-
-    <script src="main.js"></script>
-    <script type="module">
-        // Module 함수를 호출하여 WASM 인스턴스 생성
-        async function initializeWasm() {
-            console.log('Initializing WASM...');
-            const moduleInstance = await Module({
-                locateFile(path) {
-                    // WASM 파일 경로를 올바르게 지정
-                    if (path.endsWith('.wasm')) {
-                        return 'main.wasm';
-                    }
-                    return path;
-                },
-                onRuntimeInitialized() {
-                    console.log('WASM Runtime initialized!');
-                }
-            });
-            window.Module = moduleInstance;
-            return moduleInstance;
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-hover: #2a2d2e;
+            --text-primary: #cccccc;
+            --text-secondary: #858585;
+            --border-color: #3e3e42;
+            --accent-color: #0078d4;
+            --accent-hover: #1084d8;
         }
 
-        // WASM 초기화 후 UIController 로드
-        initializeWasm().then((moduleInstance) => {
-            console.log('Module ready, loading UI Controller...');
-            import('./js/ui-controller.js').then(controllerModule => {
-                const app = new controllerModule.UIController();
-                window.app = app;
-                app.init();
-            }).catch(err => {
-                console.error('UI Controller loading error:', err);
-            });
-        }).catch(err => {
-            console.error('WASM initialization error:', err);
-        });
-    </script>
-</body>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+        }
+
+        .container {
+            max-width: 600px;
+            width: 90%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1em;
+        }
+
+        .version-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .version-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 30px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .version-card:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-color);
+            transform: translateY(-2px);
+        }
+
+        .version-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .version-title {
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .version-badge {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 500;
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .version-description {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 0.95em;
+        }
+
+        .arrow {
+            font-size: 1.2em;
+            color: var(--text-secondary);
+            transition: transform 0.2s ease;
+        }
+
+        .version-card:hover .arrow {
+            transform: translateX(5px);
+            color: var(--accent-color);
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-top: 60px;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>음성 변조 앱</h1>
+            <p>구현 버전을 선택하세요</p>
+        </div>
+
+        <div class="version-selector">
+            <!-- 통합 버전 (NEW) -->
+            <a href="app/index.html" class="version-card">
+                <div class="version-card-header">
+                    <div>
+                        <div class="version-title">통합 앱 (권장)</div>
+                        <div class="version-badge">C++ ⇄ JS</div>
+                    </div>
+                    <span class="arrow">→</span>
+                </div>
+                <p class="version-description">
+                    C++과 JavaScript를 토글하며 비교 가능. 성능 보고서 포함
+                </p>
+            </a>
+
+            <!-- C++ WASM 버전 -->
+            <a href="cpp/index.html" class="version-card">
+                <div class="version-card-header">
+                    <div>
+                        <div class="version-title">C++ WASM</div>
+                        <div class="version-badge">WebAssembly</div>
+                    </div>
+                    <span class="arrow">→</span>
+                </div>
+                <p class="version-description">
+                    C++로 작성되어 WebAssembly로 컴파일된 고성능 버전
+                </p>
+            </a>
+
+            <!-- JavaScript 버전 -->
+            <a href="js/index.html" class="version-card">
+                <div class="version-card-header">
+                    <div>
+                        <div class="version-title">Pure JavaScript</div>
+                        <div class="version-badge">Web Audio API</div>
+                    </div>
+                    <span class="arrow">→</span>
+                </div>
+                <p class="version-description">
+                    순수 JavaScript로 구현된 버전
+                </p>
+            </a>
+        </div>
+
+        <div class="footer">
+            <p>동일한 기능을 C++과 JavaScript로 구현하여 성능을 비교합니다</p>
+        </div>
+    </div>
+</body>
 </html>

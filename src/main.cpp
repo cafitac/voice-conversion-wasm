@@ -6,10 +6,14 @@
 #include "analysis/PitchAnalyzer.h"
 #include "effects/VoiceFilter.h"
 #include "effects/AudioReverser.h"
+#include "performance/PerformanceChecker.h"
 
-// 외부 라이브러리 직접 사용을 위한 헤더
+// 직접 구현한 DSP 알고리즘
+#include "dsp/SimplePitchShifter.h"
+#include "dsp/SimpleTimeStretcher.h"
+
+// 외부 라이브러리 (비교용으로 남겨둠)
 #include <SoundTouch.h>
-#include <rubberband/RubberBandStretcher.h>
 
 using namespace emscripten;
 
@@ -44,13 +48,14 @@ val analyzePitch(uintptr_t dataPtr, int length, int sampleRate) {
 
 /**
  * 전체 파일에 균일한 Pitch Shift 적용 (음성 효과용)
- * 외부 라이브러리(SoundTouch, RubberBand)를 직접 사용하여 전체 오디오 일괄 처리
+ * 직접 구현한 SimplePitchShifter 사용
  *
  * @param dataPtr 오디오 데이터 포인터
  * @param length 오디오 길이 (샘플 수)
  * @param sampleRate 샘플레이트
  * @param pitchSemitones Pitch shift 양 (semitones, -12 ~ +12)
- * @param algorithm 알고리즘 선택 ("soundtouch", "rubberband")
+ * @param algorithm 알고리즘 선택 ("simple" 또는 "soundtouch")
+ * @param perfCheckerVal PerformanceChecker 객체 (optional)
  * @return 처리된 오디오 (Float32Array)
  */
 emscripten::val applyUniformPitchShift(
@@ -58,7 +63,8 @@ emscripten::val applyUniformPitchShift(
     int length,
     int sampleRate,
     float pitchSemitones,
-    const std::string& algorithm
+    const std::string& algorithm,
+    val perfCheckerVal = val::null()
 ) {
   // 1. 오디오 데이터 변환
   float* audioData = reinterpret_cast<float*>(dataPtr);
@@ -68,43 +74,16 @@ emscripten::val applyUniformPitchShift(
   AudioBuffer buffer(sampleRate, 1);
   buffer.setData(samples);
 
-  // 3. 외부 라이브러리로 직접 처리 (프레임 변환 없음)
   AudioBuffer result(sampleRate, 1);
 
-  if (algorithm == "rubberband") {
-    // RubberBand 직접 사용
-    RubberBand::RubberBandStretcher::Options options =
-        RubberBand::RubberBandStretcher::OptionProcessOffline |
-        RubberBand::RubberBandStretcher::OptionEngineFiner |
-        RubberBand::RubberBandStretcher::OptionFormantPreserved;
+  // PerformanceChecker 가져오기 (옵션)
+  PerformanceChecker* perfChecker = nullptr;
+  if (!perfCheckerVal.isNull() && !perfCheckerVal.isUndefined()) {
+    perfChecker = &perfCheckerVal.as<PerformanceChecker&>();
+  }
 
-    RubberBand::RubberBandStretcher stretcher(sampleRate, 1, options);
-
-    // 버퍼 크기 사전 설정 (경고 방지)
-    stretcher.setMaxProcessSize(samples.size());
-    stretcher.setExpectedInputDuration(samples.size());
-
-    double pitchScale = std::pow(2.0, pitchSemitones / 12.0);
-    stretcher.setPitchScale(pitchScale);
-    stretcher.setTimeRatio(1.0);
-
-    // Study and process
-    const float* inputPtr = samples.data();
-    stretcher.study(&inputPtr, samples.size(), true);
-    stretcher.process(&inputPtr, samples.size(), true);
-
-    // Retrieve output
-    std::vector<float> outputData;
-    int available = stretcher.available();
-    if (available > 0) {
-      outputData.resize(available);
-      float* outputPtr = outputData.data();
-      stretcher.retrieve(&outputPtr, available);
-    }
-    result.setData(outputData);
-
-  } else {
-    // SoundTouch 직접 사용 (기본값)
+  if (algorithm == "soundtouch") {
+    // 기존 SoundTouch 사용 (비교용)
     soundtouch::SoundTouch st;
     st.setSampleRate(sampleRate);
     st.setChannels(1);
@@ -126,6 +105,10 @@ emscripten::val applyUniformPitchShift(
     int received = st.receiveSamples(outputData.data(), outputData.size());
     outputData.resize(received);
     result.setData(outputData);
+  } else {
+    // 3. 직접 구현한 SimplePitchShifter 사용 (기본값)
+    SimplePitchShifter pitchShifter;
+    result = pitchShifter.process(buffer, pitchSemitones, perfChecker);
   }
 
   // 4. Float32Array로 변환하여 반환
@@ -141,13 +124,14 @@ emscripten::val applyUniformPitchShift(
 
 /**
  * 전체 파일에 균일한 Time Stretch 적용 (음성 효과용)
- * 외부 라이브러리(SoundTouch, RubberBand)를 직접 사용하여 전체 오디오 일괄 처리
+ * 직접 구현한 SimpleTimeStretcher 사용
  *
  * @param dataPtr 오디오 데이터 포인터
  * @param length 오디오 길이 (샘플 수)
  * @param sampleRate 샘플레이트
  * @param durationRatio Time stretch 비율 (0.5 ~ 2.0, 1.0 = 변화 없음)
- * @param algorithm 알고리즘 선택 ("wsola", "soundtouch", "rubberband")
+ * @param algorithm 알고리즘 선택 ("simple" 또는 "soundtouch")
+ * @param perfCheckerVal PerformanceChecker 객체 (optional)
  * @return 처리된 오디오 (Float32Array)
  */
 emscripten::val applyUniformTimeStretch(
@@ -155,7 +139,8 @@ emscripten::val applyUniformTimeStretch(
     int length,
     int sampleRate,
     float durationRatio,
-    const std::string& algorithm
+    const std::string& algorithm,
+    val perfCheckerVal = val::null()
 ) {
   // 1. 오디오 데이터 변환
   float* audioData = reinterpret_cast<float*>(dataPtr);
@@ -165,41 +150,16 @@ emscripten::val applyUniformTimeStretch(
   AudioBuffer buffer(sampleRate, 1);
   buffer.setData(samples);
 
-  // 3. 외부 라이브러리로 직접 처리 (프레임 변환 없음)
   AudioBuffer result(sampleRate, 1);
 
-  if (algorithm == "rubberband") {
-    // RubberBand 직접 사용
-    RubberBand::RubberBandStretcher::Options options =
-        RubberBand::RubberBandStretcher::OptionProcessOffline |
-        RubberBand::RubberBandStretcher::OptionEngineFiner;
+  // PerformanceChecker 가져오기 (옵션)
+  PerformanceChecker* perfChecker = nullptr;
+  if (!perfCheckerVal.isNull() && !perfCheckerVal.isUndefined()) {
+    perfChecker = &perfCheckerVal.as<PerformanceChecker&>();
+  }
 
-    RubberBand::RubberBandStretcher stretcher(sampleRate, 1, options);
-
-    // 버퍼 크기 사전 설정 (경고 방지)
-    stretcher.setMaxProcessSize(samples.size());
-    stretcher.setExpectedInputDuration(samples.size());
-
-    stretcher.setPitchScale(1.0);  // 피치 유지
-    stretcher.setTimeRatio(durationRatio);
-
-    // Study and process
-    const float* inputPtr = samples.data();
-    stretcher.study(&inputPtr, samples.size(), true);
-    stretcher.process(&inputPtr, samples.size(), true);
-
-    // Retrieve output
-    std::vector<float> outputData;
-    int available = stretcher.available();
-    if (available > 0) {
-      outputData.resize(available);
-      float* outputPtr = outputData.data();
-      stretcher.retrieve(&outputPtr, available);
-    }
-    result.setData(outputData);
-
-  } else {
-    // SoundTouch 직접 사용 (기본값: soundtouch 및 wsola)
+  if (algorithm == "soundtouch") {
+    // 기존 SoundTouch 사용 (비교용)
     soundtouch::SoundTouch st;
     st.setSampleRate(sampleRate);
     st.setChannels(1);
@@ -222,6 +182,10 @@ emscripten::val applyUniformTimeStretch(
     int received = st.receiveSamples(outputData.data(), outputData.size());
     outputData.resize(received);
     result.setData(outputData);
+  } else {
+    // 3. 직접 구현한 SimpleTimeStretcher 사용 (기본값)
+    SimpleTimeStretcher timeStretcher;
+    result = timeStretcher.process(buffer, durationRatio, perfChecker);
   }
 
   // 4. Float32Array로 변환하여 반환
@@ -306,4 +270,36 @@ EMSCRIPTEN_BINDINGS(audio_module) {
       .value("FLANGER", FilterType::FLANGER)
       .value("VOICE_CHANGER_MALE_TO_FEMALE", FilterType::VOICE_CHANGER_MALE_TO_FEMALE)
       .value("VOICE_CHANGER_FEMALE_TO_MALE", FilterType::VOICE_CHANGER_FEMALE_TO_MALE);
+
+  // PerformanceChecker FunctionNode
+  value_object<PerformanceChecker::FunctionNode>("FunctionNode")
+      .field("name", &PerformanceChecker::FunctionNode::name)
+      .field("duration", &PerformanceChecker::FunctionNode::duration)
+      .field("children", &PerformanceChecker::FunctionNode::children);
+
+  // PerformanceChecker FeatureNode
+  value_object<PerformanceChecker::FeatureNode>("FeatureNode")
+      .field("feature", &PerformanceChecker::FeatureNode::feature)
+      .field("duration", &PerformanceChecker::FeatureNode::duration)
+      .field("functions", &PerformanceChecker::FeatureNode::functions);
+
+  // PerformanceChecker class
+  class_<PerformanceChecker>("PerformanceChecker")
+      .constructor<>()
+      .function("start", &PerformanceChecker::start)
+      .function("end", &PerformanceChecker::end)
+      .function("getAverage", &PerformanceChecker::getAverage)
+      .function("reset", &PerformanceChecker::reset)
+      .function("getReportJSON", &PerformanceChecker::getReportJSON)
+      .function("getReportCSV", &PerformanceChecker::getReportCSV)
+      .function("startFeature", &PerformanceChecker::startFeature)
+      .function("endFeature", &PerformanceChecker::endFeature)
+      .function("startFunction", &PerformanceChecker::startFunction)
+      .function("endFunction", &PerformanceChecker::endFunction)
+      .function("getFeatures", &PerformanceChecker::getFeatures)
+      .function("getTotalDuration", &PerformanceChecker::getTotalDuration);
+
+  // Vector types
+  register_vector<PerformanceChecker::FunctionNode>("VectorFunctionNode");
+  register_vector<PerformanceChecker::FeatureNode>("VectorFeatureNode");
 }

@@ -27,6 +27,10 @@ CPP_FILES=(
     "src/analysis/PitchAnalyzer.cpp"
     "src/effects/VoiceFilter.cpp"
     "src/effects/AudioReverser.cpp"
+    "src/performance/PerformanceChecker.cpp"
+    # 직접 구현한 DSP 알고리즘
+    "src/dsp/SimplePitchShifter.cpp"
+    "src/dsp/SimpleTimeStretcher.cpp"
     # SoundTouch 라이브러리 (핵심 파일만)
     "src/external/soundtouch/source/SoundTouch/SoundTouch.cpp"
     "src/external/soundtouch/source/SoundTouch/FIFOSampleBuffer.cpp"
@@ -41,13 +45,11 @@ CPP_FILES=(
     "src/external/soundtouch/source/SoundTouch/cpu_detect_x86.cpp"
     # KissFFT 라이브러리
     "src/external/kissfft/kiss_fft.c"
-    # RubberBand 라이브러리 (Single compilation unit)
-    "src/external/rubberband/single/RubberBandSingle.cpp"
 )
 
 # 컴파일
 em++ "${CPP_FILES[@]}" \
-  -o web/main.js \
+  -o web/cpp/main.js \
   -s WASM=1 \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s EXPORTED_FUNCTIONS='["_malloc", "_free"]' \
@@ -62,16 +64,15 @@ em++ "${CPP_FILES[@]}" \
   -I./src \
   -I./src/external/soundtouch/include \
   -I./src/external/soundtouch/source \
-  -I./src/external/kissfft \
-  -I./src/external/rubberband
+  -I./src/external/kissfft
 
 if [ $? -eq 0 ]; then
     echo ""
     echo "✓ 빌드 완료!"
     echo ""
     echo "생성된 파일:"
-    echo "  - web/main.js"
-    echo "  - web/main.wasm"
+    echo "  - web/cpp/main.js"
+    echo "  - web/cpp/main.wasm"
     echo ""
     echo "웹 서버 실행:"
     echo "  ./runserver.sh"

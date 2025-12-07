@@ -18,7 +18,4 @@ tests/*.wav
 web/main.js
 web/main.wasm
 
-# 벤치마크 결과 (자동 생성, dist/에 복사됨)
-benchmark_result/
-
 # dist/는 GitHub Actions가 관리하므로 .gitignore에 추가하지 않음

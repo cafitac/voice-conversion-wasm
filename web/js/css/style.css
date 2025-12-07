@@ -1,0 +1,28 @@
+/* Main Style - Import all component styles */
+
+/* Base styles and variables */
+@import url('./base.css');
+
+/* Component styles */
+@import url('../components/toolbar/toolbar.css');
+@import url('../components/sidebar/sidebar.css');
+@import url('../components/chart/chart.css');
+.coming-soon {
+    font-size: 0.75em;
+    color: #f57c00;
+    background: #fff3e0;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 10px;
+}
+
+.performance-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.performance-section button {
+    margin-bottom: 10px;
+    width: 100%;
+}
