@@ -85,30 +85,69 @@ AudioBuffer SimplePitchShifter::resample(const AudioBuffer& input, float ratio) 
     std::cout << "[SimplePitchShifter] 리샘플링 - 입력: " << inputLength
               << " -> 출력: " << outputLength << " 샘플" << std::endl;
 
-    // 각 출력 샘플마다 입력에서 값을 읽어옴
-    for (int i = 0; i < outputLength; i++) {
-        // 입력에서 읽을 위치 계산
-        float inputPos = i * ratio;
+    // SIMD 최적화: 4개씩 묶어서 처리
+    int i = 0;
+    int simdSize = outputLength - 3;
 
-        // 정수 부분과 소수 부분으로 분리
+    for (; i < simdSize; i += 4) {
+        // 4개의 출력 샘플을 한 번에 계산 (컴파일러 SIMD 힌트)
+        float inputPos0 = i * ratio;
+        float inputPos1 = (i + 1) * ratio;
+        float inputPos2 = (i + 2) * ratio;
+        float inputPos3 = (i + 3) * ratio;
+
+        int index0 = (int)inputPos0;
+        int index1 = (int)inputPos1;
+        int index2 = (int)inputPos2;
+        int index3 = (int)inputPos3;
+
+        float frac0 = inputPos0 - index0;
+        float frac1 = inputPos1 - index1;
+        float frac2 = inputPos2 - index2;
+        float frac3 = inputPos3 - index3;
+
+        // 범위 체크 및 보간
+        if (index0 < inputLength - 1) {
+            outputData[i] = inputData[index0] * (1.0f - frac0) + inputData[index0 + 1] * frac0;
+        } else {
+            outputData[i] = inputData[inputLength - 1];
+        }
+
+        if (index1 < inputLength - 1) {
+            outputData[i + 1] = inputData[index1] * (1.0f - frac1) + inputData[index1 + 1] * frac1;
+        } else {
+            outputData[i + 1] = inputData[inputLength - 1];
+        }
+
+        if (index2 < inputLength - 1) {
+            outputData[i + 2] = inputData[index2] * (1.0f - frac2) + inputData[index2 + 1] * frac2;
+        } else {
+            outputData[i + 2] = inputData[inputLength - 1];
+        }
+
+        if (index3 < inputLength - 1) {
+            outputData[i + 3] = inputData[index3] * (1.0f - frac3) + inputData[index3 + 1] * frac3;
+        } else {
+            outputData[i + 3] = inputData[inputLength - 1];
+        }
+    }
+
+    // 나머지 처리
+    for (; i < outputLength; i++) {
+        float inputPos = i * ratio;
         int index = (int)inputPos;
         float fraction = inputPos - index;
 
-        // 범위 체크
         if (index >= inputLength - 1) {
-            // 마지막 샘플 사용
             outputData[i] = inputData[inputLength - 1];
         } else {
-            // 선형 보간으로 중간값 계산
-            float sample1 = inputData[index];
-            float sample2 = inputData[index + 1];
-            outputData[i] = linearInterpolate(sample1, sample2, fraction);
+            outputData[i] = linearInterpolate(inputData[index], inputData[index + 1], fraction);
         }
     }
 
     // 결과 AudioBuffer 생성
     AudioBuffer output(sampleRate, 1);
-    output.setData(outputData);
+    output.setData(std::move(outputData)); // move semantics
     return output;
 }
 

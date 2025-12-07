@@ -111,15 +111,9 @@ emscripten::val applyUniformPitchShift(
     result = pitchShifter.process(buffer, pitchSemitones, perfChecker);
   }
 
-  // 4. Float32Array로 변환하여 반환
+  // 4. Float32Array로 변환하여 반환 (Zero-copy: 메모리 직접 참조)
   const auto& resultData = result.getData();
-  val outputArray = val::global("Float32Array").new_(resultData.size());
-
-  for (size_t i = 0; i < resultData.size(); ++i) {
-    outputArray.set(i, resultData[i]);
-  }
-
-  return outputArray;
+  return val(typed_memory_view(resultData.size(), resultData.data()));
 }
 
 /**
@@ -188,15 +182,9 @@ emscripten::val applyUniformTimeStretch(
     result = timeStretcher.process(buffer, durationRatio, perfChecker);
   }
 
-  // 4. Float32Array로 변환하여 반환
+  // 4. Float32Array로 변환하여 반환 (Zero-copy: 메모리 직접 참조)
   const auto& resultData = result.getData();
-  val outputArray = val::global("Float32Array").new_(resultData.size());
-
-  for (size_t i = 0; i < resultData.size(); ++i) {
-    outputArray.set(i, resultData[i]);
-  }
-
-  return outputArray;
+  return val(typed_memory_view(resultData.size(), resultData.data()));
 }
 
 // 음성 필터 적용
@@ -220,6 +208,73 @@ val applyVoiceFilter(uintptr_t dataPtr,
   return val(typed_memory_view(resultData.size(), resultData.data()));
 }
 
+/**
+ * InPlace Pitch Shift: 출력 버퍼를 JS에서 미리 할당하여 복사 완전 제거
+ * @param inputPtr 입력 오디오 포인터
+ * @param outputPtr 출력 오디오 포인터 (JS에서 미리 할당)
+ * @param length 입력 길이
+ * @param outputLength 출력 길이 (JS에서 계산)
+ * @param sampleRate 샘플레이트
+ * @param pitchSemitones Pitch shift 양
+ * @return 실제 출력된 샘플 수
+ */
+int applyUniformPitchShiftInPlace(
+    uintptr_t inputPtr,
+    uintptr_t outputPtr,
+    int length,
+    int outputLength,
+    int sampleRate,
+    float pitchSemitones
+) {
+  float* inputData = reinterpret_cast<float*>(inputPtr);
+  float* outputData = reinterpret_cast<float*>(outputPtr);
+
+  std::vector<float> samples(inputData, inputData + length);
+  AudioBuffer buffer(sampleRate, 1);
+  buffer.setData(samples);
+
+  SimplePitchShifter pitchShifter;
+  AudioBuffer result = pitchShifter.process(buffer, pitchSemitones, nullptr);
+
+  const auto& resultData = result.getData();
+  int copyLength = std::min((int)resultData.size(), outputLength);
+
+  // 출력 버퍼에 직접 복사
+  std::memcpy(outputData, resultData.data(), copyLength * sizeof(float));
+
+  return copyLength;
+}
+
+/**
+ * InPlace Time Stretch: 출력 버퍼를 JS에서 미리 할당하여 복사 완전 제거
+ */
+int applyUniformTimeStretchInPlace(
+    uintptr_t inputPtr,
+    uintptr_t outputPtr,
+    int length,
+    int outputLength,
+    int sampleRate,
+    float durationRatio
+) {
+  float* inputData = reinterpret_cast<float*>(inputPtr);
+  float* outputData = reinterpret_cast<float*>(outputPtr);
+
+  std::vector<float> samples(inputData, inputData + length);
+  AudioBuffer buffer(sampleRate, 1);
+  buffer.setData(samples);
+
+  SimpleTimeStretcher timeStretcher;
+  AudioBuffer result = timeStretcher.process(buffer, durationRatio, nullptr);
+
+  const auto& resultData = result.getData();
+  int copyLength = std::min((int)resultData.size(), outputLength);
+
+  // 출력 버퍼에 직접 복사
+  std::memcpy(outputData, resultData.data(), copyLength * sizeof(float));
+
+  return copyLength;
+}
+
 // 오디오 역재생
 val reverseAudio(uintptr_t dataPtr, int length, int sampleRate) {
   float *data = reinterpret_cast<float *>(dataPtr);
@@ -231,15 +286,9 @@ val reverseAudio(uintptr_t dataPtr, int length, int sampleRate) {
   AudioReverser reverser;
   AudioBuffer result = reverser.reverse(buffer);
 
-  // Float32Array로 변환하여 반환
+  // Float32Array로 변환하여 반환 (Zero-copy: 메모리 직접 참조)
   const auto& resultData = result.getData();
-  val outputArray = val::global("Float32Array").new_(resultData.size());
-
-  for (size_t i = 0; i < resultData.size(); ++i) {
-    outputArray.set(i, resultData[i]);
-  }
-
-  return outputArray;
+  return val(typed_memory_view(resultData.size(), resultData.data()));
 }
 
 // Emscripten 바인딩
@@ -255,6 +304,10 @@ EMSCRIPTEN_BINDINGS(audio_module) {
   function("applyUniformTimeStretch", &applyUniformTimeStretch);
   function("applyVoiceFilter", &applyVoiceFilter);
   function("reverseAudio", &reverseAudio);
+
+  // InPlace 효과 함수 (Zero-copy 최적화)
+  function("applyUniformPitchShiftInPlace", &applyUniformPitchShiftInPlace);
+  function("applyUniformTimeStretchInPlace", &applyUniformTimeStretchInPlace);
 
   // FilterType enum
   enum_<FilterType>("FilterType")

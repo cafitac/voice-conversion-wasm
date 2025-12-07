@@ -8,15 +8,13 @@ AudioReverser::~AudioReverser() {
 }
 
 AudioBuffer AudioReverser::reverse(const AudioBuffer& input) {
-    // 입력 버퍼 데이터 복사
-    std::vector<float> data = input.getData();
-
-    // 역순으로 뒤집기
-    std::reverse(data.begin(), data.end());
+    // 최적화: reverse iterator로 직접 생성 (복사 1회로 감소)
+    const std::vector<float>& inputData = input.getData();
+    std::vector<float> data(inputData.rbegin(), inputData.rend());
 
     // 결과 버퍼 생성
     AudioBuffer result(input.getSampleRate(), input.getChannels());
-    result.setData(data);
+    result.setData(std::move(data)); // move semantics 사용
 
     return result;
 }

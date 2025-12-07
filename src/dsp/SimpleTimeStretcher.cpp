@@ -12,6 +12,7 @@
  */
 
 #include "SimpleTimeStretcher.h"
+#include "../audio/BufferPool.h"
 #include <cmath>
 #include <algorithm>
 #include <iostream>
@@ -47,10 +48,10 @@ AudioBuffer SimpleTimeStretcher::process(const AudioBuffer& input, float ratio, 
     int seekWindowSamples = (seekWindowMs * sampleRate) / 1000;
     int overlapSamples = (overlapMs * sampleRate) / 1000;
 
-    // 출력 버퍼 크기 예측
+    // 출력 버퍼 크기 예측 (메모리 풀 사용)
     int estimatedOutputLength = (int)(inputLength / ratio) + sequenceSamples;
-    std::vector<float> outputData;
-    outputData.reserve(estimatedOutputLength);
+    auto outputData = BufferPool::getInstance().acquire(estimatedOutputLength);
+    outputData.clear(); // 크기는 유지하되 내용은 비움
 
     int inputPos = 0;
     int outputPos = 0;
@@ -127,7 +128,7 @@ AudioBuffer SimpleTimeStretcher::process(const AudioBuffer& input, float ratio, 
               << outputData.size() << " 샘플" << std::endl;
 
     AudioBuffer output(sampleRate, 1);
-    output.setData(outputData);
+    output.setData(std::move(outputData)); // move semantics
     return output;
 }
 
@@ -140,13 +141,36 @@ void SimpleTimeStretcher::applyHannWindow(float* buffer, int size) {
 }
 
 float SimpleTimeStretcher::calculateCorrelation(const float* buf1, const float* buf2, int size) {
-    // 상관관계(correlation) 계산
+    // 상관관계(correlation) 계산 - SIMD 최적화 버전
     // 두 신호가 얼마나 비슷한지 측정
     float correlation = 0.0f;
     float norm1 = 0.0f;
     float norm2 = 0.0f;
 
-    for (int i = 0; i < size; i++) {
+    // SIMD 최적화: 4개씩 묶어서 처리 (컴파일러 자동 벡터화 힌트)
+    int i = 0;
+    int simdSize = size - (size % 4);
+
+    for (; i < simdSize; i += 4) {
+        // 컴파일러가 SIMD로 자동 최적화
+        correlation += buf1[i] * buf2[i];
+        correlation += buf1[i+1] * buf2[i+1];
+        correlation += buf1[i+2] * buf2[i+2];
+        correlation += buf1[i+3] * buf2[i+3];
+
+        norm1 += buf1[i] * buf1[i];
+        norm1 += buf1[i+1] * buf1[i+1];
+        norm1 += buf1[i+2] * buf1[i+2];
+        norm1 += buf1[i+3] * buf1[i+3];
+
+        norm2 += buf2[i] * buf2[i];
+        norm2 += buf2[i+1] * buf2[i+1];
+        norm2 += buf2[i+2] * buf2[i+2];
+        norm2 += buf2[i+3] * buf2[i+3];
+    }
+
+    // 나머지 처리
+    for (; i < size; i++) {
         correlation += buf1[i] * buf2[i];
         norm1 += buf1[i] * buf1[i];
         norm2 += buf2[i] * buf2[i];
@@ -170,22 +194,57 @@ int SimpleTimeStretcher::findBestOverlapPosition(
     float bestCorr = -1.0f;
     int bestPos = searchStart;
 
-    // 검색 범위를 돌면서 가장 유사한 위치 찾기
-    for (int offset = 0; offset < searchLength - overlapLength; offset++) {
+    // Early exit threshold: 충분히 좋은 상관관계면 조기 종료
+    const float GOOD_ENOUGH_THRESHOLD = 0.95f;
+
+    // Phase 1: Coarse search (2샘플씩 건너뛰며 빠르게 탐색)
+    int coarseStep = 2;
+    int coarseBestPos = searchStart;
+    float coarseBestCorr = -1.0f;
+
+    for (int offset = 0; offset < searchLength - overlapLength; offset += coarseStep) {
         int currentPos = searchStart + offset;
 
         if (currentPos + overlapLength > (int)input.size()) {
             break;
         }
 
-        // 유사도 계산
         float corr = calculateCorrelation(
             refSegment.data(),
             &input[currentPos],
             overlapLength
         );
 
-        // 더 유사한 위치 발견시 업데이트
+        if (corr > coarseBestCorr) {
+            coarseBestCorr = corr;
+            coarseBestPos = currentPos;
+        }
+
+        // Early exit: 충분히 좋으면 바로 종료
+        if (corr > GOOD_ENOUGH_THRESHOLD) {
+            return currentPos;
+        }
+    }
+
+    // Phase 2: Fine search (coarse 최적 위치 주변을 정밀 탐색)
+    int fineSearchStart = std::max(searchStart, coarseBestPos - coarseStep);
+    int fineSearchEnd = std::min(searchStart + searchLength - overlapLength,
+                                  coarseBestPos + coarseStep + 1);
+
+    bestPos = coarseBestPos;
+    bestCorr = coarseBestCorr;
+
+    for (int currentPos = fineSearchStart; currentPos < fineSearchEnd; currentPos++) {
+        if (currentPos + overlapLength > (int)input.size()) {
+            break;
+        }
+
+        float corr = calculateCorrelation(
+            refSegment.data(),
+            &input[currentPos],
+            overlapLength
+        );
+
         if (corr > bestCorr) {
             bestCorr = corr;
             bestPos = currentPos;

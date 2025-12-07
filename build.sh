@@ -47,7 +47,7 @@ CPP_FILES=(
     "src/external/kissfft/kiss_fft.c"
 )
 
-# 컴파일
+# 컴파일 (SIMD 및 최적화 옵션 추가)
 em++ "${CPP_FILES[@]}" \
   -o web/cpp/main.js \
   -s WASM=1 \
@@ -61,6 +61,8 @@ em++ "${CPP_FILES[@]}" \
   -s SINGLE_FILE=0 \
   --bind \
   -O3 \
+  -msimd128 \
+  -ffast-math \
   -I./src \
   -I./src/external/soundtouch/include \
   -I./src/external/soundtouch/source \
