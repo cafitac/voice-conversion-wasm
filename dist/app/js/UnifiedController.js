@@ -62,19 +62,24 @@ class UnifiedController {
             this.cppModule = await Module({
                 locateFile(path) {
                     if (path.endsWith('.wasm')) {
-                        return '../cpp/main.wasm';
+                        return './main.wasm';
                     }
                     return path;
                 },
                 onRuntimeInitialized: () => {
                     console.log('WASM Runtime initialized!');
                     this.wasmReady = true;
+                    // WASM 로드 완료 후 원본 오디오가 있으면 변환 버튼 활성화
+                    if (this.originalAudio) {
+                        document.getElementById('applyAllEffects').disabled = false;
+                        this.setStatus('준비 완료 (C++ + JS)');
+                    }
                 }
             });
             window.Module = this.cppModule;
         } catch (error) {
             console.error('WASM initialization error:', error);
-            alert('C++ 엔진 로드 실패. JavaScript 모드만 사용 가능합니다.');
+            alert('C++ 엔진 로드 실패. 페이지를 새로고침해주세요.');
         }
     }
 
@@ -110,11 +115,6 @@ class UnifiedController {
             document.getElementById('timeValue').textContent = e.target.value + 'x';
         });
 
-        // Engine toggle
-        document.getElementById('engineToggle').addEventListener('change', (e) => {
-            this.toggleEngine(e.target.checked);
-        });
-
         // Report panel
         document.getElementById('toggleReport').addEventListener('click', () => this.toggleReportPanel());
         document.getElementById('closeReport').addEventListener('click', () => this.toggleReportPanel());
@@ -137,14 +137,32 @@ class UnifiedController {
     }
 
     /**
-     * 엔진 토글 (JS <-> C++)
+     * WASM 준비 대기
+     */
+    async waitForWasm() {
+        if (this.wasmReady) return;
+
+        return new Promise((resolve) => {
+            const checkInterval = setInterval(() => {
+                if (this.wasmReady) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 100);
+
+            // 10초 타임아웃
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                resolve();
+            }, 10000);
+        });
+    }
+
+    /**
+     * 엔진 토글 (더 이상 사용 안함 - 호환성 유지)
      */
     toggleEngine(useCpp) {
         this.currentEngine = useCpp ? 'cpp' : 'js';
-        const label = document.getElementById('engineLabel');
-        label.textContent = useCpp ? 'C++' : 'JavaScript';
-
-        this.setStatus(`엔진 변경: ${label.textContent}`);
         console.log(`Engine switched to: ${this.currentEngine}`);
 
         if (useCpp && !this.wasmReady) {
@@ -218,7 +236,8 @@ class UnifiedController {
             document.getElementById('startRecord').disabled = false;
             document.getElementById('stopRecord').disabled = true;
             document.getElementById('playOriginal').disabled = false;
-            document.getElementById('applyAllEffects').disabled = false;
+            // WASM이 준비되었을 때만 변환 버튼 활성화
+            document.getElementById('applyAllEffects').disabled = !this.wasmReady;
 
             this.setStatus('녹음 완료');
             await this.analyzePitch();
@@ -249,7 +268,8 @@ class UnifiedController {
 
             document.getElementById('fileInfo').textContent = file.name;
             document.getElementById('playOriginal').disabled = false;
-            document.getElementById('applyAllEffects').disabled = false;
+            // WASM이 준비되었을 때만 변환 버튼 활성화
+            document.getElementById('applyAllEffects').disabled = !this.wasmReady;
 
             this.setStatus('파일 로드 완료');
             await this.analyzePitch();
@@ -369,9 +389,18 @@ class UnifiedController {
     async applyEffects() {
         if (!this.originalAudio) return;
 
-        this.setStatus('효과 적용 중 (JS → C++)...');
+        this.setStatus('효과 적용 중 (JS + C++)...');
 
         try {
+            // WASM 준비 대기
+            if (!this.wasmReady) {
+                this.setStatus('C++ 엔진 로딩 대기 중...');
+                await this.waitForWasm();
+                if (!this.wasmReady) {
+                    throw new Error('C++ 엔진 로드 타임아웃. JavaScript만 실행합니다.');
+                }
+            }
+
             // 현재 설정 저장
             const settings = {
                 pitch: parseFloat(document.getElementById('pitchShift').value),
@@ -381,9 +410,6 @@ class UnifiedController {
                 filterParam2: parseFloat(document.getElementById('filterParam2').value),
                 reverse: document.getElementById('reversePlayback').checked
             };
-
-            // 원래 엔진 저장
-            const originalEngine = this.currentEngine;
 
             // 1. JavaScript 엔진으로 처리
             this.setStatus('JavaScript 엔진 처리 중...');
@@ -397,9 +423,6 @@ class UnifiedController {
 
             // 3. 세션 보고서 저장
             this.performanceReport.saveSessionReport(cppReport, jsReport, settings);
-
-            // 4. 원래 엔진으로 복원 (마지막 처리 결과 유지)
-            this.currentEngine = originalEngine;
 
             // UI 업데이트
             document.getElementById('playProcessed').disabled = false;
@@ -514,11 +537,8 @@ class UnifiedController {
                 cppPerfChecker
             );
 
-            // 결과 복사
-            audioData = new Float32Array(resultArray.length);
-            for (let i = 0; i < resultArray.length; i++) {
-                audioData[i] = resultArray[i];
-            }
+            // 결과 복사 (Zero-copy: slice() 사용)
+            audioData = resultArray.slice();
 
             this.cppModule._free(dataPtr);
             cppPerfChecker.endFeature();
@@ -545,11 +565,8 @@ class UnifiedController {
                 cppPerfChecker
             );
 
-            // 결과 복사
-            audioData = new Float32Array(resultArray.length);
-            for (let i = 0; i < resultArray.length; i++) {
-                audioData[i] = resultArray[i];
-            }
+            // 결과 복사 (Zero-copy: slice() 사용)
+            audioData = resultArray.slice();
 
             this.cppModule._free(dataPtr);
             cppPerfChecker.endFeature();
@@ -584,11 +601,8 @@ class UnifiedController {
                 param2
             );
 
-            // 결과 복사
-            const outputData = new Float32Array(resultArray.length);
-            for (let i = 0; i < resultArray.length; i++) {
-                outputData[i] = resultArray[i];
-            }
+            // 결과 복사 (Zero-copy: slice() 사용)
+            const outputData = resultArray.slice();
 
             audio = new JSAudioBuffer(sampleRate, 1);
             audio.setData(outputData);
@@ -614,11 +628,8 @@ class UnifiedController {
                 sampleRate
             );
 
-            // 결과 복사
-            const outputData = new Float32Array(resultArray.length);
-            for (let i = 0; i < resultArray.length; i++) {
-                outputData[i] = resultArray[i];
-            }
+            // 결과 복사 (Zero-copy: slice() 사용)
+            const outputData = resultArray.slice();
 
             audio = new JSAudioBuffer(sampleRate, 1);
             audio.setData(outputData);

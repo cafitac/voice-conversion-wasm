@@ -91,10 +91,21 @@ AudioBuffer VoiceFilter::applyFilter(const AudioBuffer& input, FilterType type, 
         gain = std::min(gain, 3.0f);
         
         auto& data = result.getData();
-        for (float& sample : data) {
-            sample *= gain;
-            // 클리핑 방지
-            sample = std::max(-1.0f, std::min(1.0f, sample));
+        size_t i = 0;
+        const size_t size = data.size();
+        const size_t simdSize = size - (size % 4);
+
+        // ✅ SIMD optimization: 4-way unrolling
+        for (; i < simdSize; i += 4) {
+            data[i] = std::max(-1.0f, std::min(1.0f, data[i] * gain));
+            data[i+1] = std::max(-1.0f, std::min(1.0f, data[i+1] * gain));
+            data[i+2] = std::max(-1.0f, std::min(1.0f, data[i+2] * gain));
+            data[i+3] = std::max(-1.0f, std::min(1.0f, data[i+3] * gain));
+        }
+
+        // Handle remaining samples
+        for (; i < size; ++i) {
+            data[i] = std::max(-1.0f, std::min(1.0f, data[i] * gain));
         }
     }
     
@@ -202,20 +213,40 @@ void VoiceFilter::applySimpleHighPass(std::vector<float>& data, float cutoff, in
     float dt = 1.0f / sampleRate;
     float alpha = rc / (rc + dt);
 
-    std::vector<float> original = data;
+    // ✅ Memory optimization: Store only previous values, not full vector copy
+    float prevOriginal = data[0];
+    float prevOutput = data[0];
+
     for (size_t i = 1; i < data.size(); ++i) {
-        data[i] = alpha * (data[i - 1] + original[i] - original[i - 1]);
+        float currentOriginal = data[i];
+        data[i] = alpha * (prevOutput + currentOriginal - prevOriginal);
+        prevOutput = data[i];
+        prevOriginal = currentOriginal;
     }
 }
 
 float VoiceFilter::calculateRMS(const std::vector<float>& data) {
     if (data.empty()) return 0.0f;
-    
+
     float sum = 0.0f;
-    for (float sample : data) {
-        sum += sample * sample;
+    size_t i = 0;
+    const size_t size = data.size();
+    const size_t simdSize = size - (size % 4);
+
+    // ✅ SIMD optimization: 4-way unrolling (same as calculateCorrelation)
+    for (; i < simdSize; i += 4) {
+        sum += data[i] * data[i];
+        sum += data[i+1] * data[i+1];
+        sum += data[i+2] * data[i+2];
+        sum += data[i+3] * data[i+3];
     }
-    return std::sqrt(sum / data.size());
+
+    // Handle remaining samples
+    for (; i < size; ++i) {
+        sum += data[i] * data[i];
+    }
+
+    return std::sqrt(sum / size);
 }
 
 AudioBuffer VoiceFilter::applyDistortion(const AudioBuffer& input, float drive, float tone) {

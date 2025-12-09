@@ -3,7 +3,6 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/emsdk" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/src/external/rubberband" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/src/external/soundtouch" vcs="Git" />
   </component>
 </project>
