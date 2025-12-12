@@ -66,7 +66,8 @@
       "Bash(./test_optimized_stretcher)",
       "Bash(src/analysis/PitchAnalyzer.cpp )",
       "Bash(test_refactored.cpp )",
-      "Bash(./test_refactored)"
+      "Bash(./test_refactored)",
+      "Bash(./test_multithreading)"
     ],
     "deny": [],
     "ask": []
