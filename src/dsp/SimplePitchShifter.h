@@ -24,17 +24,6 @@ public:
      */
     AudioBuffer process(const AudioBuffer& input, float semitones, PerformanceChecker* perfChecker = nullptr);
 
-    /**
-     * 멀티스레딩을 사용한 병렬 처리 버전
-     * @param input 입력 오디오
-     * @param semitones 반음 단위 (-12 ~ +12)
-     * @param numThreads 사용할 스레드 수 (0 = 자동 감지)
-     * @param perfChecker 성능 측정 (optional)
-     * @return 피치가 변경된 오디오
-     */
-    AudioBuffer processParallel(const AudioBuffer& input, float semitones,
-                                int numThreads = 0, PerformanceChecker* perfChecker = nullptr);
-
 private:
     SimpleTimeStretcher timeStretcher;
 

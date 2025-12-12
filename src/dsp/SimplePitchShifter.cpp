@@ -166,39 +166,3 @@ float SimplePitchShifter::linearInterpolate(float sample1, float sample2, float 
 
     return sample1 * (1.0f - fraction) + sample2 * fraction;
 }
-
-AudioBuffer SimplePitchShifter::processParallel(const AudioBuffer& input, float semitones,
-                                                 int numThreads, PerformanceChecker* perfChecker) {
-    // 변화가 거의 없으면 원본 반환
-    if (std::abs(semitones) < 0.01f) {
-        return input;
-    }
-
-    std::cout << "[SimplePitchShifter] 병렬 처리 시작 - 반음: " << semitones
-              << ", 스레드: " << (numThreads == 0 ? "자동" : std::to_string(numThreads)) << std::endl;
-
-    // Step 1: 반음을 비율로 변환
-    if (perfChecker) perfChecker->startFunction("semitonesToRatio");
-    float pitchRatio = semitonesToRatio(semitones);
-    if (perfChecker) perfChecker->endFunction();
-
-    std::cout << "[SimplePitchShifter] 피치 비율: " << pitchRatio << std::endl;
-
-    // Step 2: Time Stretch 적용 (멀티스레딩 버전 사용)
-    float stretchRatio = 1.0f / pitchRatio;
-    if (perfChecker) perfChecker->startFunction("timeStretcher.processParallel");
-    AudioBuffer stretched = timeStretcher.processParallel(input, stretchRatio, numThreads, perfChecker);
-    if (perfChecker) perfChecker->endFunction();
-
-    std::cout << "[SimplePitchShifter] Time stretch 완료 (병렬) - 비율: " << stretchRatio << std::endl;
-
-    // Step 3: Resampling으로 원래 길이로 복원
-    if (perfChecker) perfChecker->startFunction("resample");
-    AudioBuffer result = resample(stretched, pitchRatio);
-    if (perfChecker) perfChecker->endFunction();
-
-    std::cout << "[SimplePitchShifter] 리샘플링 완료 - 최종 길이: "
-              << result.getLength() << " 샘플" << std::endl;
-
-    return result;
-}
