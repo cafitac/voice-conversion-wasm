@@ -95,7 +95,7 @@ AudioBuffer VoiceFilter::applyFilter(const AudioBuffer& input, FilterType type, 
         const size_t size = data.size();
         const size_t simdSize = size - (size % 4);
 
-        // ✅ SIMD optimization: 4-way unrolling
+        // Loop Unrolling: 4-way (루프 오버헤드 감소 + 컴파일러 자동 벡터화 유도)
         for (; i < simdSize; i += 4) {
             data[i] = std::max(-1.0f, std::min(1.0f, data[i] * gain));
             data[i+1] = std::max(-1.0f, std::min(1.0f, data[i+1] * gain));
@@ -233,7 +233,7 @@ float VoiceFilter::calculateRMS(const std::vector<float>& data) {
     const size_t size = data.size();
     const size_t simdSize = size - (size % 4);
 
-    // ✅ SIMD optimization: 4-way unrolling (same as calculateCorrelation)
+    // Loop Unrolling: 4-way (루프 오버헤드 감소 + 컴파일러 자동 벡터화 유도)
     for (; i < simdSize; i += 4) {
         sum += data[i] * data[i];
         sum += data[i+1] * data[i+1];

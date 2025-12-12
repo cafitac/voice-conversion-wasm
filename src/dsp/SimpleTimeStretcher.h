@@ -32,11 +32,6 @@ private:
     int overlapMs;       // 조각들이 겹치는 길이 (밀리초)
 
     /**
-     * Hann 윈도우 적용
-     */
-    void applyHannWindow(float* buffer, int size);
-
-    /**
      * 두 오디오 조각의 유사도 계산 (상관관계)
      */
     float calculateCorrelation(const float* buf1, const float* buf2, int size);
@@ -59,6 +54,17 @@ private:
                       int inputPos,
                       int length,
                       float fadeIn);
+
+    /**
+     * 버퍼 용량 확보 (헬퍼 함수)
+     */
+    void ensureCapacity(std::vector<float>& buffer, int writePos, int additionalSize);
+
+    /**
+     * 세그먼트 복사 (헬퍼 함수)
+     */
+    void appendSegment(std::vector<float>& output, int& writePos,
+                      const std::vector<float>& input, int inputPos, int length);
 };
 
 #endif // SIMPLE_TIME_STRETCHER_H

@@ -29,6 +29,7 @@ SimpleTimeStretcher::SimpleTimeStretcher() {
 }
 
 AudioBuffer SimpleTimeStretcher::process(const AudioBuffer& input, float ratio, PerformanceChecker* perfChecker) {
+    // 음수 처리
     if (ratio <= 0) {
         std::cerr << "[SimpleTimeStretcher] 잘못된 비율: " << ratio << std::endl;
         return input;
@@ -49,110 +50,90 @@ AudioBuffer SimpleTimeStretcher::process(const AudioBuffer& input, float ratio, 
     int overlapSamples = (overlapMs * sampleRate) / 1000;
 
     // 출력 버퍼 크기 예측 (메모리 풀 사용)
+    // BufferPool.acquire() 가 이미 resize(estimatedOutputLength) 수행
     int estimatedOutputLength = (int)(inputLength / ratio) + sequenceSamples;
     auto outputData = BufferPool::getInstance().acquire(estimatedOutputLength);
-    outputData.clear(); // 크기는 유지하되 내용은 비움
 
     int inputPos = 0;
-    int outputPos = 0;
+    int writePos = 0;
     bool isFirstSegment = true;
 
     std::cout << "[SimpleTimeStretcher] 처리 시작 - 비율: " << ratio
               << ", 입력 길이: " << inputLength << " 샘플" << std::endl;
 
-    // 조각별로 처리
-    while (inputPos < inputLength - sequenceSamples) {
-        int segmentLength = std::min(sequenceSamples, inputLength - inputPos);
+    // refSegment를 루프 밖에서 한 번만 생성 (재사용)
+    std::vector<float> refSegment(overlapSamples);
 
+    // 조각별로 처리
+    // sampleRate 수 => segement 수 만큼 반복 횟수 줄이기
+    while (inputPos < inputLength - sequenceSamples) {
         if (isFirstSegment) {
-            // 첫 조각은 그냥 복사
-            for (int i = 0; i < segmentLength; i++) {
-                outputData.push_back(inputData[inputPos + i]);
-            }
-            outputPos = segmentLength;
+            // 첫 조각: 단순 복사
+            appendSegment(outputData, writePos, inputData, inputPos, sequenceSamples);
             isFirstSegment = false;
         } else {
-            // 검색 범위에서 최적 위치 찾기
-            int searchStart = inputPos - seekWindowSamples;
-            int searchEnd = inputPos + seekWindowSamples;
+            // 검색 범위 계산
+            int searchStart = std::max(0, inputPos - seekWindowSamples);
+            int searchEnd = std::min(inputLength - overlapSamples, inputPos + seekWindowSamples);
 
-            searchStart = std::max(0, searchStart);
-            searchEnd = std::min(inputLength - overlapSamples, searchEnd);
-
-            // 참조용: 출력의 마지막 부분
-            std::vector<float> refSegment(overlapSamples);
-            int refStart = outputPos - overlapSamples;
+            // 참조 세그먼트 업데이트 (출력의 마지막 오버랩 부분)
+            int refStart = writePos - overlapSamples;
             for (int i = 0; i < overlapSamples; i++) {
                 refSegment[i] = outputData[refStart + i];
             }
 
-            // 최적 위치 찾기 (병목 지점 예상)
+            // 최적 위치 찾기
             if (perfChecker) perfChecker->startFunction("findBestOverlapPosition");
-            int bestPos = findBestOverlapPosition(
-                inputData,
-                searchStart,
-                searchEnd - searchStart,
-                refSegment,
-                overlapSamples
-            );
+            int bestPos = findBestOverlapPosition(inputData, searchStart,
+                                                  searchEnd - searchStart,
+                                                  refSegment, overlapSamples);
             if (perfChecker) perfChecker->endFunction();
 
-            // 찾은 위치에서 조각 추출하고 겹쳐서 합치기
+            // 오버랩 영역 크로스페이드
             if (perfChecker) perfChecker->startFunction("overlapAndAdd");
-            overlapAndAdd(outputData, outputPos - overlapSamples,
+            overlapAndAdd(outputData, writePos - overlapSamples,
                          inputData, bestPos, overlapSamples, 1.0f);
             if (perfChecker) perfChecker->endFunction();
 
             // 나머지 부분 추가
             int remainingLength = sequenceSamples - overlapSamples;
-            int copyStart = bestPos + overlapSamples;
-            for (int i = 0; i < remainingLength && copyStart + i < inputLength; i++) {
-                outputData.push_back(inputData[copyStart + i]);
-            }
-
-            outputPos = outputData.size();
+            appendSegment(outputData, writePos, inputData, bestPos + overlapSamples, remainingLength);
         }
 
-        // 다음 입력 위치 계산
-        int skip = (int)(sequenceSamples * ratio);
-        inputPos += skip;
+        // 다음 입력 위치로 이동
+        inputPos += static_cast<int>(sequenceSamples * ratio);
     }
 
-    // 남은 부분 추가
-    while (inputPos < inputLength) {
-        outputData.push_back(inputData[inputPos]);
-        inputPos++;
+    // 남은 샘플 추가
+    int remainingSamples = inputLength - inputPos;
+    if (remainingSamples > 0) {
+        appendSegment(outputData, writePos, inputData, inputPos, remainingSamples);
     }
+
+    // 실제 사용한 크기로 최종 조정
+    outputData.resize(writePos);
 
     std::cout << "[SimpleTimeStretcher] 처리 완료 - 출력 길이: "
-              << outputData.size() << " 샘플" << std::endl;
+              << writePos << " 샘플" << std::endl;
 
     AudioBuffer output(sampleRate, 1);
     output.setData(std::move(outputData)); // move semantics
     return output;
 }
 
-void SimpleTimeStretcher::applyHannWindow(float* buffer, int size) {
-    // Hann window: 양 끝을 부드럽게 만들어줌
-    for (int i = 0; i < size; i++) {
-        float window = 0.5f * (1.0f - std::cos(2.0f * M_PI * i / (size - 1)));
-        buffer[i] *= window;
-    }
-}
-
 float SimpleTimeStretcher::calculateCorrelation(const float* buf1, const float* buf2, int size) {
-    // 상관관계(correlation) 계산 - SIMD 최적화 버전
+    // 상관관계(correlation) 계산 - Loop Unrolling 최적화 버전
     // 두 신호가 얼마나 비슷한지 측정
     float correlation = 0.0f;
     float norm1 = 0.0f;
     float norm2 = 0.0f;
 
-    // SIMD 최적화: 4개씩 묶어서 처리 (컴파일러 자동 벡터화 힌트)
+    // Loop Unrolling: 4개씩 묶어서 처리 (루프 오버헤드 감소 + 컴파일러 자동 벡터화 유도)
     int i = 0;
     int simdSize = size - (size % 4);
 
     for (; i < simdSize; i += 4) {
-        // 컴파일러가 SIMD로 자동 최적화
+        // 4개씩 언롤링 (컴파일러가 SIMD로 자동 벡터화 가능)
         correlation += buf1[i] * buf2[i];
         correlation += buf1[i+1] * buf2[i+1];
         correlation += buf1[i+2] * buf2[i+2];
@@ -276,5 +257,27 @@ void SimpleTimeStretcher::overlapAndAdd(
         float newSample = input[inputPos + i];
 
         output[outputPos + i] = oldSample * (1.0f - ratio) + newSample * ratio;
+    }
+}
+
+void SimpleTimeStretcher::ensureCapacity(std::vector<float>& buffer, int writePos, int additionalSize) {
+    int requiredSize = writePos + additionalSize;
+    if (requiredSize > (int)buffer.size()) {
+        buffer.resize(requiredSize);
+    }
+}
+
+void SimpleTimeStretcher::appendSegment(
+    std::vector<float>& output,
+    int& writePos,
+    const std::vector<float>& input,
+    int inputPos,
+    int length)
+{
+    ensureCapacity(output, writePos, length);
+
+    int copyLength = std::min(length, (int)input.size() - inputPos);
+    for (int i = 0; i < copyLength; i++) {
+        output[writePos++] = input[inputPos + i];
     }
 }

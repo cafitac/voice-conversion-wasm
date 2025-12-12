@@ -18,6 +18,10 @@ vector<PitchPoint> PitchAnalyzer::analyze(const AudioBuffer& buffer, float frame
     int frameLength = static_cast<int>(frameSize * sampleRate);
     int hopSize = frameLength / 2; // 50% overlap
 
+    // 예상 포인트 개수만큼 메모리 미리 확보
+    size_t estimatedPoints = (data.size() - frameLength) / hopSize + 1;
+    pitchPoints.reserve(estimatedPoints);
+
     for (size_t i = 0; i + frameLength < data.size(); i += hopSize) {
         vector<float> frame(data.begin() + i, data.begin() + i + frameLength);
 
@@ -38,6 +42,7 @@ vector<PitchPoint> PitchAnalyzer::analyze(const AudioBuffer& buffer, float frame
 
 vector<PitchPoint> PitchAnalyzer::analyzeFrames(const vector<FrameData>& frames, int sampleRate) {
     vector<PitchPoint> pitchPoints;
+    pitchPoints.reserve(frames.size()); // 최대 프레임 개수만큼 확보
 
     for (const auto& frame : frames) {
         // VAD 체크: 음성 구간만 분석
@@ -156,6 +161,7 @@ vector<PitchPoint> PitchAnalyzer::applyMedianFilter(const vector<PitchPoint>& po
     }
 
     vector<PitchPoint> filtered;
+    filtered.reserve(points.size()); // 결과 크기는 입력과 동일
     int halfWindow = windowSize / 2;
 
     for (size_t i = 0; i < points.size(); ++i) {
@@ -165,6 +171,7 @@ vector<PitchPoint> PitchAnalyzer::applyMedianFilter(const vector<PitchPoint>& po
 
         // 윈도우 내 frequency 값들 수집
         vector<float> windowFreqs;
+        windowFreqs.reserve(end - start + 1); // 윈도우 크기만큼 확보
         for (int j = start; j <= end; ++j) {
             windowFreqs.push_back(points[j].frequency);
         }

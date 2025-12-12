@@ -54,7 +54,19 @@
       "Bash(git ls-tree:*)",
       "Bash(tar:*)",
       "Bash(pkill:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(clang++:*)",
+      "Bash(src/audio/AudioBuffer.cpp )",
+      "Bash(src/audio/AudioPreprocessor.cpp )",
+      "Bash(src/dsp/SimpleTimeStretcher.cpp )",
+      "Bash(src/dsp/SimplePitchShifter.cpp )",
+      "Bash(tests/test_simple_pitch_shift.cpp )",
+      "Bash(test_optimized_stretcher.cpp )",
+      "Bash(src/performance/PerformanceChecker.cpp )",
+      "Bash(./test_optimized_stretcher)",
+      "Bash(src/analysis/PitchAnalyzer.cpp )",
+      "Bash(test_refactored.cpp )",
+      "Bash(./test_refactored)"
     ],
     "deny": [],
     "ask": []

@@ -85,12 +85,12 @@ AudioBuffer SimplePitchShifter::resample(const AudioBuffer& input, float ratio) 
     std::cout << "[SimplePitchShifter] 리샘플링 - 입력: " << inputLength
               << " -> 출력: " << outputLength << " 샘플" << std::endl;
 
-    // SIMD 최적화: 4개씩 묶어서 처리
+    // Loop Unrolling: 4개씩 묶어서 처리 (루프 오버헤드 감소 + 컴파일러 자동 벡터화 유도)
     int i = 0;
     int simdSize = outputLength - 3;
 
     for (; i < simdSize; i += 4) {
-        // 4개의 출력 샘플을 한 번에 계산 (컴파일러 SIMD 힌트)
+        // 4개의 출력 샘플을 한 번에 계산
         float inputPos0 = i * ratio;
         float inputPos1 = (i + 1) * ratio;
         float inputPos2 = (i + 2) * ratio;

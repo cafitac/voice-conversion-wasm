@@ -34,6 +34,10 @@ std::vector<FrameData> AudioPreprocessor::process(
     if (frameSamples == 0) frameSamples = channels;
     if (hopSamples == 0) hopSamples = channels;
 
+    // 예상 프레임 개수만큼 메모리 미리 확보
+    size_t estimatedFrames = (data.size() - frameSamples) / hopSamples + 1;
+    frames.reserve(estimatedFrames);
+
     // 프레임별로 순회
     for (size_t i = 0; i + frameSamples <= data.size(); i += hopSamples) {
         FrameData frame;
