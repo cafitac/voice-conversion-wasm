@@ -11,6 +11,8 @@
 #include "../audio/AudioBuffer.h"
 #include "../performance/PerformanceChecker.h"
 #include <vector>
+#include <thread>
+#include <mutex>
 
 class SimpleTimeStretcher {
 public:
@@ -24,6 +26,17 @@ public:
      * @return 속도가 변경된 오디오
      */
     AudioBuffer process(const AudioBuffer& input, float ratio, PerformanceChecker* perfChecker = nullptr);
+
+    /**
+     * 멀티스레딩을 사용한 병렬 처리 버전
+     * @param input 입력 오디오
+     * @param ratio 속도 비율
+     * @param numThreads 사용할 스레드 수 (0 = 자동 감지)
+     * @param perfChecker 성능 측정 (optional)
+     * @return 속도가 변경된 오디오
+     */
+    AudioBuffer processParallel(const AudioBuffer& input, float ratio,
+                                int numThreads = 0, PerformanceChecker* perfChecker = nullptr);
 
 private:
     // 파라미터들
