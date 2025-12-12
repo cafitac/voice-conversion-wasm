@@ -96,6 +96,7 @@ class UnifiedController {
 
         // Playback
         document.getElementById('playOriginal').addEventListener('click', () => this.playOriginal());
+        document.getElementById('pauseOriginal').addEventListener('click', () => this.pauseOriginal());
         document.getElementById('playProcessed').addEventListener('click', () => this.playProcessed());
         document.getElementById('stopProcessed').addEventListener('click', () => this.stopProcessed());
 
@@ -236,6 +237,7 @@ class UnifiedController {
             document.getElementById('startRecord').disabled = false;
             document.getElementById('stopRecord').disabled = true;
             document.getElementById('playOriginal').disabled = false;
+            document.getElementById('pauseOriginal').disabled = true;
             // WASM이 준비되었을 때만 변환 버튼 활성화
             document.getElementById('applyAllEffects').disabled = !this.wasmReady;
 
@@ -268,6 +270,7 @@ class UnifiedController {
 
             document.getElementById('fileInfo').textContent = file.name;
             document.getElementById('playOriginal').disabled = false;
+            document.getElementById('pauseOriginal').disabled = true;
             // WASM이 준비되었을 때만 변환 버튼 활성화
             document.getElementById('applyAllEffects').disabled = !this.wasmReady;
 
@@ -676,8 +679,22 @@ class UnifiedController {
 
     playOriginal() {
         if (this.originalAudio) {
-            this.jsPlayer.play(this.originalAudio);
+            // 일시정지 상태면 재개, 아니면 새로 재생
+            if (this.jsPlayer.getIsPaused()) {
+                this.jsPlayer.resume();
+            } else {
+                this.jsPlayer.play(this.originalAudio, () => {
+                    // 재생이 끝나면 버튼 상태 업데이트
+                    this.updatePlaybackButtons();
+                });
+            }
+            this.updatePlaybackButtons();
         }
+    }
+
+    pauseOriginal() {
+        this.jsPlayer.pause();
+        this.updatePlaybackButtons();
     }
 
     playProcessed() {
@@ -688,6 +705,17 @@ class UnifiedController {
 
     stopProcessed() {
         this.jsPlayer.stop();
+    }
+
+    updatePlaybackButtons() {
+        const isPaused = this.jsPlayer.getIsPaused();
+        const isPlaying = this.jsPlayer.getIsPlaying();
+
+        // 재생 버튼: 원본 오디오가 있으면 항상 활성화
+        document.getElementById('playOriginal').disabled = !this.originalAudio;
+
+        // 일시정지 버튼: 재생 중이고 일시정지 안 된 상태면 활성화
+        document.getElementById('pauseOriginal').disabled = !(isPlaying && !isPaused);
     }
 
     downloadProcessed() {

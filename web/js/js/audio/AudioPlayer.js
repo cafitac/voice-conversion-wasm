@@ -22,8 +22,9 @@ export class AudioPlayer {
     /**
      * 오디오 재생
      * @param {AudioBuffer} audioBuffer
+     * @param {Function} onEndedCallback - 재생 종료 시 호출될 콜백
      */
-    play(audioBuffer) {
+    play(audioBuffer, onEndedCallback = null) {
         this.stop();
         this.initContext();
 
@@ -49,6 +50,9 @@ export class AudioPlayer {
 
         this.sourceNode.onended = () => {
             this.isPlaying = false;
+            if (onEndedCallback) {
+                onEndedCallback();
+            }
         };
 
         this.sourceNode.start(0);
@@ -70,10 +74,36 @@ export class AudioPlayer {
     }
 
     /**
+     * 일시정지
+     */
+    pause() {
+        if (this.audioContext && this.isPlaying) {
+            this.audioContext.suspend();
+        }
+    }
+
+    /**
+     * 재개
+     */
+    resume() {
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+    }
+
+    /**
      * 재생 중인지 확인
      * @returns {boolean}
      */
     getIsPlaying() {
         return this.isPlaying;
+    }
+
+    /**
+     * 일시정지 상태 확인
+     * @returns {boolean}
+     */
+    getIsPaused() {
+        return this.audioContext && this.audioContext.state === 'suspended';
     }
 }

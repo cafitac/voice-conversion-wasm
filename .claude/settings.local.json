@@ -67,7 +67,9 @@
       "Bash(src/analysis/PitchAnalyzer.cpp )",
       "Bash(test_refactored.cpp )",
       "Bash(./test_refactored)",
-      "Bash(./test_multithreading)"
+      "Bash(./test_multithreading)",
+      "Bash(./build_test_pitch_parallel.sh:*)",
+      "Bash(./test_pitch_parallel:*)"
     ],
     "deny": [],
     "ask": []
