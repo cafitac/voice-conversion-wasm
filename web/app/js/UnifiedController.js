@@ -10,6 +10,7 @@ import { PitchAnalyzer } from '../../js/js/analysis/PitchAnalyzer.js';
 import { SimplePitchShifter } from '../../js/js/dsp/SimplePitchShifter.js';
 import { SimpleTimeStretcher } from '../../js/js/dsp/SimpleTimeStretcher.js';
 import { PerformanceChecker as JSPerformanceChecker } from '../../js/js/performance/PerformanceChecker.js';
+import { WavEncoder } from '../../js/js/utils/WavEncoder.js';
 
 /**
  * UnifiedController - C++/JS 엔진 통합 컨트롤러
@@ -719,10 +720,34 @@ class UnifiedController {
     }
 
     downloadProcessed() {
-        if (!this.processedAudio) return;
+        if (!this.processedAudio) {
+            alert('변환된 오디오가 없습니다.');
+            return;
+        }
 
-        // TODO: WAV 변환 및 다운로드 구현
-        alert('다운로드 기능은 준비 중입니다.');
+        try {
+            // 현재 날짜/시간으로 파일명 생성
+            const now = new Date();
+            const timestamp = now.toISOString().replace(/:/g, '-').split('.')[0];
+            const filename = `processed_audio_${timestamp}.wav`;
+
+            // WAV 파일로 인코딩 (16-bit)
+            this.setStatus('WAV 파일 생성 중...');
+            const wavBlob = WavEncoder.encodeWav(this.processedAudio, 16);
+
+            // 다운로드
+            WavEncoder.downloadBlob(wavBlob, filename);
+            this.setStatus(`다운로드 완료: ${filename}`);
+
+            // 3초 후 상태 메시지 초기화
+            setTimeout(() => {
+                this.setStatus('준비');
+            }, 3000);
+        } catch (error) {
+            console.error('Download error:', error);
+            alert('다운로드 중 오류가 발생했습니다: ' + error.message);
+            this.setStatus('다운로드 실패');
+        }
     }
 
     setStatus(text) {
