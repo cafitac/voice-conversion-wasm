@@ -26,7 +26,7 @@
 
 ## 🎯 적용한 최적화 기법
 
-### Phase 1: Quick Wins (메모리 복사 제거 + SIMD)
+### Phase 1: Quick Wins (메모리 복사 제거 + 컴파일러 최적화)
 
 #### 1-1. Zero-Copy 메모리 전달
 **문제**: JavaScript ↔ C++ 데이터 전달 시 루프로 하나씩 복사
@@ -102,24 +102,29 @@ result.setData(std::move(data));  // move (복사 없음)
 
 ---
 
-#### 1-4. SIMD 컴파일 옵션 활성화
+#### 1-4. 컴파일러 최적화 옵션 활성화
 **추가 옵션**:
 ```bash
--O3           # 최고 수준 최적화
--msimd128     # WASM SIMD 128비트 벡터 연산
+-O3           # 최고 수준 최적화 (자동 벡터화 포함)
+-msimd128     # WASM SIMD 128비트 벡터 연산 활성화
 -ffast-math   # 부동소수점 최적화 (정확도 < 속도)
 ```
 
+**원리**:
+- `-O3`: 컴파일러가 적극적인 최적화 수행 (자동 벡터화, 루프 최적화 등)
+- `-msimd128`: Loop Unrolling 코드를 SIMD 명령어로 변환 가능하게 함
+- `-ffast-math`: 부동소수점 연산 순서 재배치 허용
+
 **적용 위치**: `build.sh:63-65`
 
-**예상 효과**: 모든 벡터 연산에서 **1.5-3배 빠름**
+**예상 효과**: Loop Unrolling 코드가 SIMD로 자동 변환 시 **1.5-2배 빠름**
 
 ---
 
 ### Phase 2: 알고리즘 최적화
 
-#### 2-1. calculateCorrelation SIMD 벡터화
-**문제**: 단순 루프는 컴파일러가 SIMD로 최적화하기 어려움
+#### 2-1. calculateCorrelation Loop Unrolling (자동 벡터화 힌트)
+**문제**: 단순 루프는 컴파일러가 SIMD로 자동 벡터화하기 어려움
 ```cpp
 // ❌ 최적화 전
 for (int i = 0; i < size; i++) {
@@ -129,9 +134,9 @@ for (int i = 0; i < size; i++) {
 }
 ```
 
-**해결**: 4개씩 언롤링하여 컴파일러에게 SIMD 힌트 제공
+**해결**: Loop Unrolling (4개씩 언롤링) → 컴파일러에게 자동 벡터화 힌트 제공
 ```cpp
-// ✅ 최적화 후: 4개씩 묶어서 처리
+// ✅ 최적화 후: Loop Unrolling (4-way)
 for (; i < simdSize; i += 4) {
     correlation += buf1[i] * buf2[i];
     correlation += buf1[i+1] * buf2[i+1];
@@ -141,9 +146,14 @@ for (; i < simdSize; i += 4) {
 }
 ```
 
+**원리**:
+1. **Loop Unrolling**: 루프를 4번씩 풀어서 루프 오버헤드 감소
+2. **자동 벡터화 힌트**: 컴파일러가 SIMD 명령어로 변환 가능하도록 패턴 제공
+3. 명시적 SIMD 코드가 아닌, 컴파일러 의존적 최적화
+
 **적용 위치**: `src/dsp/SimpleTimeStretcher.cpp:142-184`
 
-**예상 효과**: **2-3배 빠름** (SIMD로 4개씩 동시 처리)
+**예상 효과**: **1.5-2배 빠름** (루프 오버헤드 감소 + 컴파일러 자동 벡터화)
 
 ---
 
@@ -177,10 +187,10 @@ for (int pos = coarseBestPos - 2; pos < coarseBestPos + 2; pos++) {
 
 ---
 
-#### 2-3. SimplePitchShifter resample SIMD 벡터화
+#### 2-3. SimplePitchShifter resample Loop Unrolling
 **문제**: 단순 루프로 하나씩 리샘플링
 
-**해결**: 4개씩 묶어서 동시 계산
+**해결**: Loop Unrolling (4-way) → 루프 오버헤드 감소 + 자동 벡터화 힌트
 ```cpp
 // ✅ 최적화 후: 4개 출력 샘플을 동시 계산
 for (; i < simdSize; i += 4) {
@@ -189,7 +199,7 @@ for (; i < simdSize; i += 4) {
     float inputPos2 = (i + 2) * ratio;
     float inputPos3 = (i + 3) * ratio;
 
-    // 4개 샘플 동시 보간
+    // 4개 샘플 보간 (컴파일러가 벡터화 가능)
     outputData[i] = interpolate(inputPos0);
     outputData[i+1] = interpolate(inputPos1);
     outputData[i+2] = interpolate(inputPos2);
@@ -199,15 +209,15 @@ for (; i < simdSize; i += 4) {
 
 **적용 위치**: `src/dsp/SimplePitchShifter.cpp:73-152`
 
-**예상 효과**: **1.5-2배 빠름**
+**예상 효과**: **1.3-1.5배 빠름** (루프 오버헤드 감소)
 
 ---
 
-#### 2-4. VoiceFilter SIMD 벡터화 & 메모리 최적화
+#### 2-4. VoiceFilter Loop Unrolling & 메모리 최적화
 **문제 1**: calculateRMS와 volume correction 루프가 단순 반복
 **문제 2**: applySimpleHighPass에서 전체 벡터 복사 발생
 
-**해결 1**: calculateRMS SIMD 벡터화
+**해결 1**: calculateRMS Loop Unrolling (4-way)
 ```cpp
 // ✅ 최적화 후: 4개씩 묶어서 RMS 계산
 for (; i < simdSize; i += 4) {
@@ -218,7 +228,7 @@ for (; i < simdSize; i += 4) {
 }
 ```
 
-**해결 2**: Volume correction SIMD 벡터화
+**해결 2**: Volume correction Loop Unrolling (4-way)
 ```cpp
 // ✅ 최적화 후: 4개씩 묶어서 gain 적용 + clipping
 for (; i < simdSize; i += 4) {
@@ -246,11 +256,11 @@ for (size_t i = 1; i < data.size(); ++i) {
 ```
 
 **적용 위치**:
-- `src/effects/VoiceFilter.cpp:211-233` - calculateRMS SIMD 벡터화
-- `src/effects/VoiceFilter.cpp:93-109` - volume correction SIMD 벡터화
+- `src/effects/VoiceFilter.cpp:211-233` - calculateRMS Loop Unrolling
+- `src/effects/VoiceFilter.cpp:93-109` - volume correction Loop Unrolling
 - `src/effects/VoiceFilter.cpp:209-226` - applySimpleHighPass 메모리 최적화
 
-**예상 효과**: **2.5-4배 빠름** (Filter: 20.60ms → 5-8ms)
+**예상 효과**: **1.5-2배 빠름** (루프 오버헤드 감소 + 메모리 최적화)
 
 ---
 
@@ -352,9 +362,10 @@ class BufferPool {
    - `typed_memory_view`로 직접 메모리 참조
    - 복사 오버헤드 **완전 제거** → 1-2ms 절약
 
-2. **SIMD 벡터 연산**
-   - 4개 샘플을 동시 처리 (128비트 레지스터)
-   - 이론상 **4배 빠름**, 실제 **2-3배** (메모리 대역폭 제약)
+2. **Loop Unrolling + 컴파일러 자동 벡터화**
+   - Loop Unrolling (4-way): 루프 오버헤드 감소
+   - 컴파일러가 SIMD 명령어로 자동 변환 (조건부)
+   - 실제 성능 향상: **1.3-2배** (컴파일러 최적화 의존)
 
 3. **알고리즘 최적화**
    - Early exit: 불필요한 계산 **50% 감소**
@@ -372,11 +383,13 @@ class BufferPool {
 
 | Phase | 최적화 내용 | 예상 개선 | 누적 개선 |
 |-------|------------|-----------|----------|
-| Phase 1 | 메모리 복사 제거 + SIMD | **2-3배** | **2-3배** |
-| Phase 2 | 알고리즘 최적화 | **1.5-2배** | **3-6배** |
-| Phase 3 | InPlace + 메모리 풀링 | **1.2-1.5배** | **4-9배** |
+| Phase 1 | 메모리 복사 제거 + 컴파일러 최적화 | **1.5-2배** | **1.5-2배** |
+| Phase 2 | 알고리즘 최적화 + Loop Unrolling | **1.5-2배** | **2-4배** |
+| Phase 3 | InPlace + 메모리 풀링 | **1.2-1.5배** | **2.5-6배** |
 
-**최종 목표**: C++이 JavaScript보다 **5-10배 빠른 성능**
+**최종 목표**: C++이 JavaScript보다 **2-6배 빠른 성능**
+
+**참고**: SIMD 자동 벡터화는 컴파일러와 코드 패턴에 따라 달라지며, 보장되지 않음
 
 ---
 
@@ -388,7 +401,7 @@ class BufferPool {
 |------|-----------|----------|
 | 단순 연산 | JIT로 충분히 빠름 | 오버헤드로 느릴 수 있음 |
 | 복잡한 알고리즘 | 한계 있음 | 월등히 빠름 |
-| SIMD 연산 | 제한적 | 명시적으로 최적화 가능 |
+| 벡터 연산 | 제한적 | Loop Unrolling + 컴파일러 자동 벡터화 |
 | 메모리 제어 | GC에 의존 | 직접 제어 가능 |
 
 ### C++ WASM 최적화 핵심
@@ -398,10 +411,11 @@ class BufferPool {
    - Move semantics 활용
    - InPlace 처리 API 제공
 
-2. **SIMD를 활용하라**
-   - `-msimd128` 플래그
-   - 4개씩 언롤링 (컴파일러 힌트)
-   - 벡터 연산에 집중
+2. **Loop Unrolling으로 컴파일러 최적화 유도**
+   - 4-way Loop Unrolling (루프 오버헤드 감소)
+   - 컴파일러가 SIMD로 자동 벡터화 가능하도록 패턴 제공
+   - `-O3 -msimd128` 플래그로 자동 벡터화 활성화
+   - 명시적 SIMD 코드보다 이식성 높음
 
 3. **알고리즘을 최적화하라**
    - Early exit (조기 종료)
