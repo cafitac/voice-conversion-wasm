@@ -318,11 +318,15 @@ cd voice-conversion-wasm
 **멀티스레딩 (std::thread):**
 - **조사 내용**: WSOLA 세그먼트 처리를 여러 스레드로 병렬화
 - **시도**: `processParallel()` 함수 구현 (4개 스레드로 분할 처리)
-- **네이티브 C++ 결과**: **3.7배 성능 향상** 확인 (1.2초 → 0.32초)
-- **WebAssembly 제약**:
-  - `std::thread` 미지원 (SharedArrayBuffer + Web Workers 필요)
+- **네이티브 C++ 결과**:
+  - Pitch 변환: **3.7배 성능 향상** 확인 (1.2초 → 0.32초) ✅
+  - Duration 변환: 오히려 성능 저하 발생 (동기화 오버헤드) ❌
+- **문제점**:
+  - Duration(시간 늘리기/줄이기)은 세그먼트 간 의존성이 있어 병렬화 효과 미미
+  - 스레드 생성/동기화 오버헤드가 실제 계산 시간보다 큼
+  - WebAssembly는 `std::thread` 미지원 (SharedArrayBuffer + Web Workers 필요)
   - COOP/COEP 헤더 설정 필요로 배포 복잡도 증가
-- **결론**: 단일 스레드 최적화에 집중, 네이티브 환경에서는 효과 검증 완료
+- **결론**: Pitch에는 효과적이나 Duration에는 부적합. 단일 스레드 최적화로 충분한 성능 달성하여 롤백
 
 **명시적 SIMD (Neon/SSE):**
 - **조사 내용**: ARM Neon, x86 SSE 명령어를 직접 사용한 벡터화
