@@ -161,6 +161,29 @@ class UnifiedController {
     }
 
     /**
+     * 오디오 데이터 정리
+     */
+    cleanupAudio() {
+        // 플레이어 중지
+        if (this.jsPlayer) {
+            this.jsPlayer.stop();
+        }
+
+        // 변환된 오디오 초기화
+        this.processedAudio = null;
+
+        // 피치 데이터 초기화
+        this.pitchData = [];
+
+        // 변환된 오디오 재생 버튼 비활성화
+        document.getElementById('playProcessed').disabled = true;
+        document.getElementById('stopProcessed').disabled = true;
+        document.getElementById('downloadProcessed').disabled = true;
+
+        console.log('Audio data cleaned up');
+    }
+
+    /**
      * 엔진 토글 (더 이상 사용 안함 - 호환성 유지)
      */
     toggleEngine(useCpp) {
@@ -234,6 +257,9 @@ class UnifiedController {
      */
     async stopRecording() {
         try {
+            // 기존 오디오 정리
+            this.cleanupAudio();
+
             this.originalAudio = await this.jsRecorder.stop();
             document.getElementById('startRecord').disabled = false;
             document.getElementById('stopRecord').disabled = true;
@@ -259,6 +285,9 @@ class UnifiedController {
         this.setStatus('파일 로딩 중...');
 
         try {
+            // 기존 오디오 정리
+            this.cleanupAudio();
+
             const arrayBuffer = await file.arrayBuffer();
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const audioBufferData = await audioContext.decodeAudioData(arrayBuffer);
@@ -280,6 +309,9 @@ class UnifiedController {
         } catch (error) {
             console.error('File upload error:', error);
             alert('파일을 로드할 수 없습니다.');
+        } finally {
+            // 파일 input 초기화 (같은 파일 다시 선택 가능하도록)
+            event.target.value = '';
         }
     }
 
@@ -700,6 +732,9 @@ class UnifiedController {
 
     playProcessed() {
         if (this.processedAudio) {
+            // 이전 재생 중지
+            this.jsPlayer.stop();
+            // 새로 재생
             this.jsPlayer.play(this.processedAudio);
         }
     }
