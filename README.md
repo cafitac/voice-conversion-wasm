@@ -76,22 +76,22 @@ cd voice-conversion-wasm
 
 ## 👨‍💻 역할 분담
 
-### 이연지 (팀장) - 음성 효과 & 프론트엔드
+### 이연지 (팀장) - 음성 효과, 피치 분석 & 프론트엔드
 - **VoiceFilter** (effects/VoiceFilter.h/cpp) - 12가지 음성 필터 구현 (로봇, 에코, 리버브, 디스토션, 코러스, 플랜저 등)
+- **PitchAnalyzer** (analysis/PitchAnalyzer.h/cpp) - YIN 알고리즘 기반 피치 분석 및 주파수 탐지 (시각화용)
+- **AudioPreprocessor** (audio/AudioPreprocessor.h/cpp) - 오디오 전처리 (프레임 분할, 윈도우 함수, RMS 계산)
 - **UnifiedController.js** - 메인 애플리케이션 컨트롤러 및 엔진 선택 로직
-- **UI/UX 디자인** - HTML/CSS, 반응형 레이아웃, 사용자 인터페이스 전체
+- **UI/UX 디자인** - HTML/CSS, 반응형 레이아웃, 사용자 인터페이스 전체, D3.js 피치 시각화
 - **Web Audio API 통합** - AudioRecorder, AudioPlayer 구현
 - **WavEncoder.js** - WAV 파일 인코딩 및 다운로드 기능
 - **프로젝트 관리** - 일정 조율, 통합 테스트, 배포 관리
 
-### 강민우 - 피치/듀레이션 알고리즘 & 성능 최적화
+### 강민우 - 피치/듀레이션 변환 알고리즘 & 성능 최적화
 - **SimplePitchShifter** (dsp/SimplePitchShifter.h/cpp) - 피치 변환 알고리즘 (Time Stretch + Resampling)
-- **SimpleTimeStretcher** (dsp/SimpleTimeStretcher.h/cpp) - WSOLA 알고리즘 구현 (시간 늘리기/줄이기)
-- **PitchAnalyzer** (analysis/PitchAnalyzer.h/cpp) - YIN 알고리즘 기반 피치 분석 및 주파수 탐지
-- **AudioPreprocessor** (audio/AudioPreprocessor.h/cpp) - 오디오 전처리 (프레임 분할, 윈도우 함수, RMS 계산)
-- **성능 최적화** - Loop Unrolling (4-way), 상관관계 계산 최적화, Early Exit
+- **SimpleTimeStretcher** (dsp/SimpleTimeStretcher.h/cpp) - WSOLA 알고리즘 구현 (시간 늘리기/줄이기, 상관관계 계산)
+- **성능 최적화** - Loop Unrolling (4-way), 상관관계 계산 최적화, Early Exit, Coarse-to-Fine 탐색
 - **PerformanceChecker** (performance/PerformanceChecker.h/cpp) - 성능 측정 및 프로파일링
-- **JavaScript DSP 엔진** - C++ 알고리즘의 JavaScript 포팅 (SimplePitchShifter.js, SimpleTimeStretcher.js, PitchAnalyzer.js 등)
+- **JavaScript DSP 엔진** - C++ 알고리즘의 JavaScript 포팅 (SimplePitchShifter.js, SimpleTimeStretcher.js 등)
 - **PerformanceReport.js** - C++ vs JavaScript 성능 비교 리포트 생성 및 시각화
 
 ### 김우혁 - 오디오 버퍼 & WebAssembly 바인딩
@@ -141,21 +141,7 @@ cd voice-conversion-wasm
 
 **결과**: 자연스러운 음질 유지하면서 성능도 1.5-2배 향상
 
-### 3. YIN 알고리즘의 부정확한 피치 탐지
-
-**문제점**:
-- 낮은 주파수에서 옥타브 에러 (실제 주파수의 절반 또는 2배로 탐지)
-- 배경 소음이 있을 때 불안정한 탐지
-
-**해결 방법**:
-1. **누적 평균 정규화 (CMNDF)**: 자기 상관 함수 정규화로 안정성 향상
-2. **절대 임계값**: 0.1 이하일 때만 피치로 인정
-3. **포물선 보간**: 정수 위치뿐만 아니라 소수점 단위 정밀도 향상
-4. **최소/최대 주파수 제한**: 80Hz ~ 800Hz (사람 음성 범위)
-
-**결과**: 피치 탐지 정확도 95% 이상 달성
-
-### 4. WebAssembly 멀티스레딩의 한계
+### 3. WebAssembly 멀티스레딩의 한계
 
 **문제점**:
 - WebAssembly는 기본적으로 `std::thread` 미지원
@@ -187,7 +173,7 @@ cd voice-conversion-wasm
 
 **알고리즘 구현:**
 - **WSOLA (Waveform Similarity Overlap-Add)**: 학술 논문 기반 고품질 시간 늘리기/줄이기
-- **YIN 알고리즘**: 누적 평균 정규화(CMNDF) + 포물선 보간으로 고정밀 피치 탐지
+- **Pitch Shifting (Time Stretch + Resampling)**: 반음 단위 정밀 피치 변환
 - **상관관계 기반 파형 매칭**: 최적 위치 탐색으로 자연스러운 음질 보장
 
 ### 2. UI/UX 개선
@@ -473,15 +459,13 @@ school/
 - 파형 유사도 기반 시간 늘리기/줄이기
 - 상관관계 계산으로 최적 위치 탐색
 - 크로스페이드로 부드러운 연결
+- 피치 유지하면서 듀레이션만 변경
 
-### YIN 알고리즘
-- 자기 상관 함수 기반 피치 탐지
-- 누적 평균 정규화 (CMNDF)
-- 포물선 보간으로 정밀도 향상
-
-### Pitch Shifting
-- Time Stretch + Resampling 조합
+### Pitch Shifting (Time Stretch + Resampling)
+- Time Stretch로 오디오 길이 변경 (피치도 같이 변함)
+- Resampling으로 원래 길이로 복원 (피치만 변경됨)
 - 반음 → 주파수 비율 변환 (2^(semitones/12))
+- 선형 보간으로 고품질 리샘플링
 
 ---
 
