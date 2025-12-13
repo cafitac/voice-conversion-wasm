@@ -2,7 +2,6 @@
  * SimpleTimeStretcher.cpp
  *
  * WSOLA (Waveform Similarity Overlap-Add) 기반 시간 늘이기/줄이기 알고리즘
- * 대학교 1학년이 이해할 수 있는 수준으로 구현
  *
  * 핵심 개념:
  * 1. 오디오를 작은 조각(segment)으로 나눔

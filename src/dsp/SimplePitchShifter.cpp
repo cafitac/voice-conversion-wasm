@@ -2,7 +2,6 @@
  * SimplePitchShifter.cpp
  *
  * 피치 변경 알고리즘 (Time Stretch + Resampling 조합)
- * 대학교 1학년이 이해할 수 있는 수준으로 구현
  *
  * 핵심 개념:
  * 1. Time Stretch로 오디오 길이를 변경 (피치도 같이 변함)

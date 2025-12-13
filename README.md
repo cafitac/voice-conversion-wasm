@@ -36,6 +36,49 @@ C++ WebAssembly 기반 실시간 음성 변조 웹 애플리케이션
 
 ---
 
+## 🎓 핵심 알고리즘
+
+### WSOLA vs FFT: 왜 WSOLA를 선택했는가?
+
+음성 변조 알고리즘을 선택할 때 **FFT (Fast Fourier Transform)** 기반 방식과 **WSOLA (Waveform Similarity Overlap-Add)** 방식 중 고민했습니다. 최종적으로 WSOLA를 선택한 이유는 다음과 같습니다:
+
+**FFT 기반 방식 (Phase Vocoder)의 단점:**
+- **복잡한 구현**: 주파수 도메인 변환 → 위상 조정 → 역변환 과정 필요
+- **높은 메모리 사용량**: 복소수 버퍼 및 FFT 임시 버퍼 필요 (약 2-3배)
+- **느린 처리 속도**: FFT/IFFT 연산 자체가 무거움 (O(N log N))
+- **WebAssembly 제약**: 복소수 연산이 JavaScript보다 느릴 수 있음
+- **초기화 오버헤드**: FFT 라이브러리 로딩 및 초기화 시간
+
+**WSOLA의 장점:**
+- **단순한 구현**: 시간 도메인에서 직접 처리
+- **낮은 메모리 사용량**: 실수 버퍼만 필요, 복소수 불필요
+- **빠른 처리 속도**: 상관관계 계산만으로 충분 (O(N))
+- **WebAssembly 최적화 용이**: Loop Unrolling, Early Exit 등 최적화 기법 적용 쉬움
+- **자연스러운 음질**: 파형 유사도 기반으로 위상 불연속 최소화
+
+**성능 비교 (3분 오디오 기준):**
+| 알고리즘 | 처리 시간 | 메모리 사용량 | 구현 복잡도 |
+|---------|----------|--------------|-----------|
+| FFT (Phase Vocoder) | ~150-200ms | ~80MB | 높음 |
+| WSOLA (최적화 전) | ~35ms | ~32MB | 낮음 |
+| **WSOLA (최적화 후)** | **~27ms** | **~25MB** | **낮음** |
+
+**결론**: WSOLA는 FFT보다 **5-7배 빠르고**, 메모리는 **60% 적게** 사용하며, 구현도 훨씬 간단합니다. 특히 WebAssembly 환경에서는 시간 도메인 최적화가 주파수 도메인보다 효과적입니다.
+
+### WSOLA (Waveform Similarity Overlap-Add)
+- 파형 유사도 기반 시간 늘리기/줄이기
+- 상관관계 계산으로 최적 위치 탐색
+- 크로스페이드로 부드러운 연결
+- 피치 유지하면서 듀레이션만 변경
+
+### Pitch Shifting (Time Stretch + Resampling)
+- Time Stretch로 오디오 길이 변경 (피치도 같이 변함)
+- Resampling으로 원래 길이로 복원 (피치만 변경됨)
+- 반음 → 주파수 비율 변환 (2^(semitones/12))
+- 선형 보간으로 고품질 리샘플링
+
+---
+
 ## 🚀 실행 방법
 
 ### 1. 사전 요구사항
@@ -548,51 +591,6 @@ school/
 - **[OPTIMIZATION.md](./OPTIMIZATION.md)** - 성능 최적화 기법 및 원리
 - **[COMPONENTS_GUIDE.md](./COMPONENTS_GUIDE.md)** - 전체 컴포넌트 상세 가이드
 - **[PRESENTATION_GUIDE.md](./PRESENTATION_GUIDE.md)** - 프레젠테이션 가이드
-
----
-
-## 🎓 핵심 알고리즘
-
-### WSOLA vs FFT: 왜 WSOLA를 선택했는가?
-
-음성 변조 알고리즘을 선택할 때 **FFT (Fast Fourier Transform)** 기반 방식과 **WSOLA (Waveform Similarity Overlap-Add)** 방식 중 고민했습니다. 최종적으로 WSOLA를 선택한 이유는 다음과 같습니다:
-
-**FFT 기반 방식 (Phase Vocoder)의 단점:**
-- **복잡한 구현**: 주파수 도메인 변환 → 위상 조정 → 역변환 과정 필요
-- **높은 메모리 사용량**: 복소수 버퍼 및 FFT 임시 버퍼 필요 (약 2-3배)
-- **느린 처리 속도**: FFT/IFFT 연산 자체가 무거움 (O(N log N))
-- **WebAssembly 제약**: 복소수 연산이 JavaScript보다 느릴 수 있음
-- **초기화 오버헤드**: FFT 라이브러리 로딩 및 초기화 시간
-
-**WSOLA의 장점:**
-- **단순한 구현**: 시간 도메인에서 직접 처리 (대학교 1학년도 이해 가능)
-- **낮은 메모리 사용량**: 실수 버퍼만 필요, 복소수 불필요
-- **빠른 처리 속도**: 상관관계 계산만으로 충분 (O(N))
-- **WebAssembly 최적화 용이**: Loop Unrolling, Early Exit 등 최적화 기법 적용 쉬움
-- **자연스러운 음질**: 파형 유사도 기반으로 위상 불연속 최소화
-
-**성능 비교 (3분 오디오 기준):**
-| 알고리즘 | 처리 시간 | 메모리 사용량 | 구현 복잡도 |
-|---------|----------|--------------|-----------|
-| FFT (Phase Vocoder) | ~150-200ms | ~80MB | 높음 |
-| WSOLA (최적화 전) | ~35ms | ~32MB | 낮음 |
-| **WSOLA (최적화 후)** | **~27ms** | **~25MB** | **낮음** |
-
-**결론**: WSOLA는 FFT보다 **5-7배 빠르고**, 메모리는 **60% 적게** 사용하며, 구현도 훨씬 간단합니다. 특히 WebAssembly 환경에서는 시간 도메인 최적화가 주파수 도메인보다 효과적입니다.
-
----
-
-### WSOLA (Waveform Similarity Overlap-Add)
-- 파형 유사도 기반 시간 늘리기/줄이기
-- 상관관계 계산으로 최적 위치 탐색
-- 크로스페이드로 부드러운 연결
-- 피치 유지하면서 듀레이션만 변경
-
-### Pitch Shifting (Time Stretch + Resampling)
-- Time Stretch로 오디오 길이 변경 (피치도 같이 변함)
-- Resampling으로 원래 길이로 복원 (피치만 변경됨)
-- 반음 → 주파수 비율 변환 (2^(semitones/12))
-- 선형 보간으로 고품질 리샘플링
 
 ---
 
